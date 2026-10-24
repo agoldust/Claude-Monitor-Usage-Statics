@@ -1,0 +1,16 @@
+<Window x:Class="ClaudeUsageMonitor.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Sign in to Claude"
+        Width="520" Height="720" MinWidth="420" MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        Background="#FBFAF7" FontFamily="Segoe UI">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Background="{StaticResource CardBrush}" Padding="16,10">
+            <TextBlock x:Name="HintText" TextWrapping="Wrap" Style="{StaticResource LabelStyle}"
+                       Text="Sign in to claude.ai. This window closes by itself when you are signed in. Your password and session stay in this browser; the app only reads your usage limits." />
+        </Border>
+        <wv2:WebView2 x:Name="Browser" />
+    </DockPanel>
+</Window>
