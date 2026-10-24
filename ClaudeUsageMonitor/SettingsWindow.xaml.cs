@@ -95,8 +95,8 @@ public partial class SettingsWindow : Controls.GlassDialog
         App.Current.ApplySettings();
     }
 
-    /// <summary>Shows both readings of a slider value, such as "20% (80% transparent)", so neither is mistaken for the other.</summary>
-    private static string OpacityLabel(double percent) => $"{percent:0}% ({100 - percent:0}% transparent)";
+    /// <summary>Formats a slider value as an opacity percentage, such as "80%".</summary>
+    private static string OpacityLabel(double percent) => $"{percent:0}%";
 
     private void BlurCheck_Click(object sender, RoutedEventArgs e)
     {

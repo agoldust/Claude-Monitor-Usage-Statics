@@ -23,7 +23,7 @@ Start only the widget with `--widget`.
 - **Live plan limits.** Sign in to claude.ai from the app; limits are fetched from claude.ai's internal web endpoints (not a public API, so they may change without notice). Shown as ring gauges with a pace marker.
 - **Graphical dashboard.** Ring gauges, a 14-day bar chart, model share, token mix, hour-of-day chart, and collapsible account details and tables. Press F5 to refresh.
 - **Widget.** Always-on-top, translucent window with optional blur. Opacity defaults to 30%.
-- **Dark glass look.** The dashboard, widget, Settings and About share one dark glass theme with blur. The dashboard opacity defaults to 20% (80% transparent); Settings and About never go below 70% so their text stays readable.
+- **Dark glass look.** The dashboard, widget, Settings and About share one dark glass theme with blur. The dashboard opacity defaults to 80%; Settings and About never go below 70% so their text stays readable.
 - **Settings.** Refresh interval (30 seconds to 1 hour), widget and dashboard opacity, blur, always on top, start with Windows.
 - **About.** Author, MIT license, version and build details (with a copy button for bug reports), a data and privacy summary, a disclaimer and credits.
 

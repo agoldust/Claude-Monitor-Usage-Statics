@@ -39,7 +39,7 @@
                 Margin="0,4,0,4" ValueChanged="DashboardOpacitySlider_ValueChanged"
                 AutomationProperties.Name="Dashboard background opacity" />
         <TextBlock Style="{StaticResource LabelStyle}" TextWrapping="Wrap" Margin="0,0,0,16"
-                   Text="The default is 20% (80% transparent). Settings and About never go below 70%, so their text stays readable." />
+                   Text="The default is 80%. Settings and About never go below 70%, so their text stays readable." />
 
         <TextBlock Text="Windows" Style="{StaticResource HeadingStyle}" />
         <CheckBox x:Name="StartupCheck" Content="Start with Windows" Margin="0,0,0,6" Click="StartupCheck_Click" />
