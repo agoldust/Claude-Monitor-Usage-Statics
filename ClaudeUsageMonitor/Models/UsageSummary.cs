@@ -75,6 +75,9 @@ public sealed class UsageSummary
     /// <summary>The ten project folders with the most tokens, sorted by total tokens in descending order.</summary>
     public IReadOnlyList<ProjectUsage> ByProject { get; init; } = Array.Empty<ProjectUsage>();
 
+    /// <summary>The totals for each local hour of the day (index 0 is midnight) over the last 30 days.</summary>
+    public IReadOnlyList<UsageTotals> ByHour { get; init; } = Array.Empty<UsageTotals>();
+
     /// <summary>The number of distinct sessions across all records.</summary>
     public int SessionCount { get; init; }
 

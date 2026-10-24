@@ -45,6 +45,11 @@ public static class UsageAggregator
                 .OrderByDescending(p => p.Totals.TotalTokens)
                 .Take(10)
                 .ToList(),
+            ByHour = Enumerable.Range(0, 24)
+                .Select(hour => Totals(local
+                    .Where(x => x.Day >= monthStart && x.Record.Timestamp.ToLocalTime().Hour == hour)
+                    .Select(x => x.Record)))
+                .ToList(),
             SessionCount = records.Select(r => r.SessionId).Distinct().Count(),
             LastActivity = records.Count == 0 ? null : records.Max(r => r.Timestamp)
         };

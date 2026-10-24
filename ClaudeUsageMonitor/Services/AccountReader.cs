@@ -26,6 +26,7 @@ public sealed class AccountReader
             {
                 Email = GetString(oauth.Value, "emailAddress"),
                 FullName = GetString(oauth.Value, "fullName") ?? GetString(oauth.Value, "displayName"),
+                OrganizationId = GetString(oauth.Value, "organizationUuid"),
                 OrganizationName = GetString(oauth.Value, "organizationName"),
                 OrganizationRole = GetString(oauth.Value, "organizationRole"),
                 OrganizationType = GetString(oauth.Value, "organizationType"),

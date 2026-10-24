@@ -12,6 +12,9 @@ public sealed record AccountInfo
     /// <summary>The full name of the account holder, or the display name when no full name is stored.</summary>
     public string? FullName { get; init; }
 
+    /// <summary>The ID of the organization Claude Code uses, used to pick the same organization for live data.</summary>
+    public string? OrganizationId { get; init; }
+
     /// <summary>The name of the organization that the account belongs to.</summary>
     public string? OrganizationName { get; init; }
 

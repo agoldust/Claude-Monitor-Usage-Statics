@@ -1,109 +1,181 @@
 using System.Globalization;
 using System.Windows;
-using System.Windows.Threading;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using ClaudeUsageMonitor.Controls;
 using ClaudeUsageMonitor.Models;
 using ClaudeUsageMonitor.Services;
 
 namespace ClaudeUsageMonitor;
 
 /// <summary>
-/// The main window. It shows the account details and usage totals read from the local Claude Code files.
+/// The dashboard. It shows live plan limits from claude.ai, and charts and totals from the local Claude Code files.
+/// Data comes from the shared <see cref="MonitorHub"/>.
 /// </summary>
 public partial class MainWindow : Window
 {
-    /// <summary>How often the usage data is reloaded while the window is open.</summary>
-    private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(1);
-
-    /// <summary>Reads the Claude Code session logs.</summary>
-    private readonly ClaudeLogReader _logReader = new();
-
-    /// <summary>Reads the account and subscription details.</summary>
-    private readonly AccountReader _accountReader = new();
-
-    /// <summary>Triggers a reload every <see cref="RefreshInterval"/>.</summary>
-    private readonly DispatcherTimer _timer = new() { Interval = RefreshInterval };
-
-    /// <summary>True while a reload is in progress, so overlapping reloads are skipped.</summary>
-    private bool _loading;
+    private readonly MonitorHub _hub;
 
     /// <summary>
-    /// Initializes the window and starts the refresh timer once the window has loaded.
+    /// Creates the dashboard and draws whatever the hub already has.
     /// </summary>
-    public MainWindow()
+    /// <param name="hub">The shared data source.</param>
+    public MainWindow(MonitorHub hub)
     {
         InitializeComponent();
-        _timer.Tick += async (_, _) => await LoadAsync();
-        Loaded += async (_, _) =>
+        _hub = hub;
+        _hub.Changed += OnHubChanged;
+        Closed += (_, _) => _hub.Changed -= OnHubChanged;
+        PreviewKeyDown += async (_, e) =>
         {
-            _timer.Start();
-            await LoadAsync();
+            if (e.Key == Key.F5)
+            {
+                e.Handled = true;
+                await _hub.RefreshAsync();
+            }
         };
+        Activated += (_, _) => WidgetButton.Content = App.Current.IsWidgetOpen ? "Hide widget" : "Show widget";
+        Render();
     }
 
-    /// <summary>
-    /// Handles the Refresh button by reloading the account and usage data.
-    /// </summary>
-    /// <param name="sender">The button that was clicked.</param>
-    /// <param name="e">The routed event arguments.</param>
+    private void OnHubChanged(object? sender, EventArgs e) => Render();
+
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
-        await LoadAsync();
+        await _hub.RefreshAsync();
+    }
+
+    private void WidgetButton_Click(object sender, RoutedEventArgs e)
+    {
+        App.Current.ToggleWidget();
+        WidgetButton.Content = App.Current.IsWidgetOpen ? "Hide widget" : "Show widget";
+    }
+
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        new SettingsWindow { Owner = this }.ShowDialog();
     }
 
     /// <summary>
-    /// Reads the account and usage data on a background thread and shows it in the window.
-    /// Does nothing if a reload is already running. Errors are shown in the status bar.
+    /// Opens the claude.ai sign-in window, or signs out when already signed in.
     /// </summary>
-    /// <returns>A task that completes when the reload has finished.</returns>
-    private async Task LoadAsync()
+    private async void SignInButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_loading)
-        {
-            return;
-        }
-
-        _loading = true;
-        RefreshButton.IsEnabled = false;
-        StatusText.Text = "Refreshing...";
-
+        SignInButton.IsEnabled = false;
         try
         {
-            // File and JSON reads run off the UI thread so the window stays responsive.
-            var (account, summary) = await Task.Run(() =>
+            if (_hub.SignedIn)
             {
-                var accountInfo = _accountReader.Read();
-                var records = _logReader.ReadAll();
-                return (accountInfo, UsageAggregator.Build(records, DateTimeOffset.UtcNow));
-            });
-
-            ShowAccount(account);
-            ShowSummary(summary);
-
-            var when = DateTime.Now.ToString("HH:mm:ss", CultureInfo.CurrentCulture);
-            StatusText.Text = _logReader.RootExists
-                ? $"Updated {when} from {ClaudePaths.ClaudeHome}"
-                : $"Updated {when}. No Claude Code logs found at {ClaudePaths.ClaudeHome}";
+                await _hub.SignOutAsync();
+            }
+            else
+            {
+                await App.Current.SignInAsync(this);
+            }
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Could not refresh: {ex.Message}";
+            LiveStatusText.Text = $"Sign-in failed: {ex.Message}";
         }
         finally
         {
-            RefreshButton.IsEnabled = true;
-            _loading = false;
+            SignInButton.IsEnabled = true;
         }
     }
 
+    /// <summary>Redraws every section from the hub's latest data.</summary>
+    private void Render()
+    {
+        RefreshButton.IsEnabled = !_hub.IsLoading;
+        SignInButton.Content = _hub.SignedIn ? "Sign out" : "Sign in";
+
+        if (_hub.IsLoading && _hub.LastUpdated is null)
+        {
+            StatusText.Text = "Loading...";
+        }
+        else if (_hub.LocalError is { } error)
+        {
+            StatusText.Text = $"Could not refresh: {error}";
+        }
+        else if (_hub.LastUpdated is { } updated)
+        {
+            var every = _hub.Interval.TotalMinutes >= 1 ? $"{_hub.Interval.TotalMinutes:0.#} min" : $"{_hub.Interval.TotalSeconds:0} s";
+            StatusText.Text = _hub.LogsFound
+                ? $"Updated {updated:HH:mm:ss} · refreshes every {every} · F5 to refresh now"
+                : $"Updated {updated:HH:mm:ss}. No Claude Code logs found at {ClaudePaths.ClaudeHome}";
+        }
+
+        if (_hub.Account is { } account)
+        {
+            ShowAccount(account);
+        }
+
+        if (_hub.Summary is { } summary)
+        {
+            ShowSummary(summary);
+        }
+
+        ShowLive();
+    }
+
+    // ---------------------------------------------------------------- Live limits
+
     /// <summary>
-    /// Writes the account and subscription details into the account text blocks.
+    /// Updates the live card. On an error, the last good tiles stay visible and the status line says how old they are.
     /// </summary>
-    /// <param name="a">The account details to show.</param>
+    private void ShowLive()
+    {
+        var result = _hub.LiveResult;
+        if (result is null)
+        {
+            LiveStatusText.Text = "Checking claude.ai...";
+            return;
+        }
+
+        if (_hub.LastGoodLive is { } live)
+        {
+            var now = DateTimeOffset.Now;
+            LimitsList.ItemsSource = live.Limits.Select(l => UsageFormatting.ToLimitRow(l, now)).ToList();
+            LiveExtraText.Text = UsageFormatting.DescribeExtras(live);
+            LiveExtraText.Visibility = LiveExtraText.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+            LiveLegendText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            LimitsList.ItemsSource = null;
+            LiveExtraText.Visibility = Visibility.Collapsed;
+            LiveLegendText.Visibility = Visibility.Collapsed;
+        }
+
+        LiveStatusText.Text = result.Status switch
+        {
+            LiveUsageStatus.Ok when result.Usage is { Limits.Count: 0 } => "Signed in, but claude.ai returned no limits for this plan.",
+            LiveUsageStatus.Ok when result.Usage is { } u =>
+                $"Live from claude.ai{(string.IsNullOrWhiteSpace(u.OrganizationName) ? "" : $" · {u.OrganizationName}")} · updated {u.FetchedAt:HH:mm:ss}",
+            LiveUsageStatus.SignedOut => "Sign in to see your current session and weekly limits.",
+            _ => $"Could not update live limits: {result.Message}" +
+                 (_hub.LastGoodLive is { } last ? $" Showing data from {last.FetchedAt:HH:mm:ss}." : "")
+        };
+    }
+
+    // ---------------------------------------------------------------- Account and local stats
+
+    /// <summary>
+    /// Writes the account details and the collapsed account header.
+    /// </summary>
     private void ShowAccount(AccountInfo a)
     {
+        var plan = string.IsNullOrWhiteSpace(a.SubscriptionType)
+            ? null
+            : CultureInfo.CurrentCulture.TextInfo.ToTitleCase(a.SubscriptionType);
+
+        AccountHeaderText.Text = string.Join(" · ", new[] { "Account", a.Email, plan is null ? null : $"{plan} plan" }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+
         EmailText.Text = Label("Email", a.Email);
         NameText.Text = Label("Name", a.FullName);
-        PlanText.Text = Label("Plan", a.SubscriptionType);
+        PlanText.Text = Label("Plan", plan);
         BillingText.Text = Label("Billing", a.BillingType);
         OrgText.Text = Label("Organization", a.OrganizationName);
         RoleText.Text = Label("Role", a.OrganizationRole);
@@ -120,15 +192,29 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Writes the usage totals and the daily, per-model and per-project tables.
+    /// Writes the totals, the charts, and the detailed tables.
     /// </summary>
-    /// <param name="s">The usage summary to show.</param>
     private void ShowSummary(UsageSummary s)
     {
         SetTotals(s.Today, TodayTokensText, TodayDetailText);
         SetTotals(s.Last7Days, WeekTokensText, WeekDetailText);
         SetTotals(s.Last30Days, MonthTokensText, MonthDetailText);
         SetTotals(s.AllTime, AllTokensText, AllDetailText);
+
+        DailyChart.ItemsSource = UsageFormatting.DailyColumns(s.ByDay, withLabels: true);
+        var busiest = s.ByDay.MaxBy(d => d.Totals.TotalTokens);
+        DailyChartNote.Text = busiest is null || busiest.Totals.TotalTokens == 0
+            ? "No usage in the last 14 days"
+            : $"Busiest: {busiest.Day.ToString("ddd d MMM", CultureInfo.CurrentCulture)}, {UsageFormatting.Compact(busiest.Totals.TotalTokens)} tokens";
+
+        ShowModelShare(s.ByModel);
+        ShowTokenMix(s.Last30Days);
+
+        HourChart.ItemsSource = UsageFormatting.Columns(s.ByHour.Select((h, hour) => (
+            Label: hour % 3 == 0 ? hour.ToString("00", CultureInfo.InvariantCulture) : "",
+            Value: (double)h.TotalTokens,
+            Tooltip: $"{hour:00}:00 to {(hour + 1) % 24:00}:00\n{h.TotalTokens:N0} tokens · {h.Requests:N0} requests",
+            Brush: Palette.Sonnet)));
 
         DailyGrid.ItemsSource = s.ByDay
             .Select(d => new DailyRow(d.Day, d.Totals.Requests, d.Totals.TotalTokens, d.Totals.EstimatedCostUsd))
@@ -143,41 +229,68 @@ public partial class MainWindow : Window
             .ToList();
     }
 
+    private void ShowModelShare(IReadOnlyList<ModelUsage> models)
+    {
+        var total = models.Sum(m => (double)m.Totals.TotalTokens);
+        ModelShareList.ItemsSource = models.Select(m =>
+        {
+            var share = total > 0 ? m.Totals.TotalTokens / total : 0;
+            return new ShareBar(
+                UsageFormatting.ShortModelName(m.Model),
+                new GridLength(share, GridUnitType.Star),
+                new GridLength(1 - share, GridUnitType.Star),
+                Palette.ForModel(m.Model),
+                $"{share * 100:0.#}% · {UsageFormatting.Compact(m.Totals.TotalTokens)}",
+                $"{m.Model}\n{m.Totals.TotalTokens:N0} tokens · {m.Totals.Requests:N0} requests\nEst. cost ${m.Totals.EstimatedCostUsd:F2}");
+        }).ToList();
+    }
+
+    /// <summary>Builds the stacked token-mix bar and its legend for a set of totals.</summary>
+    private void ShowTokenMix(UsageTotals t)
+    {
+        var parts = new (string Name, long Value, Brush Brush)[]
+        {
+            ("Input", t.InputTokens, Palette.Input),
+            ("Output", t.OutputTokens, Palette.Output),
+            ("Cache write", t.CacheCreationTokens, Palette.CacheWrite),
+            ("Cache read", t.CacheReadTokens, Palette.CacheRead)
+        };
+        var total = (double)parts.Sum(p => p.Value);
+
+        TokenMixBar.Children.Clear();
+        TokenMixBar.ColumnDefinitions.Clear();
+        foreach (var part in parts.Where(p => p.Value > 0))
+        {
+            TokenMixBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(part.Value, GridUnitType.Star) });
+            var segment = new Border
+            {
+                Background = part.Brush,
+                ToolTip = $"{part.Name}: {part.Value:N0} tokens ({part.Value / total * 100:0.#}%)"
+            };
+            Grid.SetColumn(segment, TokenMixBar.ColumnDefinitions.Count - 1);
+            TokenMixBar.Children.Add(segment);
+        }
+
+        TokenMixLegend.ItemsSource = parts
+            .Select(p => new LegendItem(p.Brush,
+                $"{p.Name}: {UsageFormatting.Compact(p.Value)} ({(total > 0 ? p.Value / total * 100 : 0):0.#}%)"))
+            .ToList();
+    }
+
     /// <summary>
     /// Fills one summary card with the total token count and the request, cost and token-type details.
     /// </summary>
-    /// <param name="t">The totals to show.</param>
-    /// <param name="big">The text block that shows the total token count.</param>
-    /// <param name="detail">The text block that shows the request count, cost and token breakdown.</param>
-    private static void SetTotals(UsageTotals t, System.Windows.Controls.TextBlock big, System.Windows.Controls.TextBlock detail)
+    private static void SetTotals(UsageTotals t, TextBlock big, TextBlock detail)
     {
-        big.Text = Compact(t.TotalTokens) + " tokens";
-        detail.Text = $"{t.Requests:N0} requests · est. ${t.EstimatedCostUsd:F2}\n" +
-                      $"in {Compact(t.InputTokens)} · out {Compact(t.OutputTokens)} · cache {Compact(t.CacheCreationTokens + t.CacheReadTokens)}";
+        big.Text = UsageFormatting.Compact(t.TotalTokens) + " tokens";
+        detail.Text = $"{t.Requests:N0} requests · Est. cost ${t.EstimatedCostUsd:F2}\n" +
+                      $"In {UsageFormatting.Compact(t.InputTokens)} · out {UsageFormatting.Compact(t.OutputTokens)} · " +
+                      $"cache {UsageFormatting.Compact(t.CacheCreationTokens + t.CacheReadTokens)}";
     }
 
     /// <summary>
-    /// Formats a token count with a B, M or K suffix for values of one thousand or more.
+    /// Builds a "name: value" line for the account panel, with "not available" in place of a missing value.
     /// </summary>
-    /// <param name="value">The count to format.</param>
-    /// <returns>The formatted count, such as "1.23M" or "4,567".</returns>
-    private static string Compact(long value)
-    {
-        return value switch
-        {
-            >= 1_000_000_000 => $"{value / 1_000_000_000.0:F2}B",
-            >= 1_000_000 => $"{value / 1_000_000.0:F2}M",
-            >= 1_000 => $"{value / 1_000.0:F1}K",
-            _ => value.ToString("N0", CultureInfo.CurrentCulture)
-        };
-    }
-
-    /// <summary>
-    /// Builds a "name: value" line for the account panel.
-    /// </summary>
-    /// <param name="name">The field name shown before the colon.</param>
-    /// <param name="value">The field value, or null or blank when it is unknown.</param>
-    /// <returns>The label text, with "not available" in place of a missing value.</returns>
     private static string Label(string name, string? value)
     {
         return $"{name}: {(string.IsNullOrWhiteSpace(value) ? "not available" : value)}";
