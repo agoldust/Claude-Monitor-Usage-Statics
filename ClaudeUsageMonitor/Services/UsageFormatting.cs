@@ -167,7 +167,7 @@ public static class UsageFormatting
         }).ToList();
     }
 
-    /// <summary>Builds the 14-day column bars, with today in a darker color.</summary>
+    /// <summary>Builds the 14-day column bars, with today in a lighter color.</summary>
     /// <param name="days">The daily totals, oldest first.</param>
     /// <param name="withLabels">False to leave the axis labels empty, for small charts.</param>
     public static List<ColumnBar> DailyColumns(IReadOnlyList<DailyUsage> days, bool withLabels)
@@ -179,7 +179,7 @@ public static class UsageFormatting
             Tooltip: $"{d.Day.ToString("dddd d MMMM", CultureInfo.CurrentCulture)}\n" +
                      $"{d.Totals.TotalTokens:N0} tokens · {d.Totals.Requests:N0} requests\n" +
                      $"Est. cost ${d.Totals.EstimatedCostUsd:F2}",
-            Brush: d.Day == today ? Palette.AccentDark : Palette.Accent)));
+            Brush: d.Day == today ? Palette.Today : Palette.Accent)));
     }
 
     /// <summary>Turns "claude-opus-5-5" into "Opus 5.5". Unknown formats are returned unchanged.</summary>

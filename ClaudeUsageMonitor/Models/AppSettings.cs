@@ -18,7 +18,10 @@ public sealed class AppSettings
     /// <summary>How opaque the widget background is, from 0 (clear) to 1 (solid). The default is 30%.</summary>
     public double WidgetOpacity { get; set; } = 0.30;
 
-    /// <summary>True to blur whatever is behind the widget, like frosted glass.</summary>
+    /// <summary>How opaque the dashboard background is, from 0 to 1. The default is 20% (80% transparent).</summary>
+    public double DashboardOpacity { get; set; } = 0.20;
+
+    /// <summary>True to blur whatever is behind the widget and the dashboard, like frosted glass.</summary>
     public bool WidgetBlur { get; set; } = true;
 
     /// <summary>True to keep the widget above other windows.</summary>
@@ -41,6 +44,7 @@ public sealed class AppSettings
     {
         RefreshSeconds = Math.Clamp(RefreshSeconds, MinRefreshSeconds, MaxRefreshSeconds);
         WidgetOpacity = double.IsFinite(WidgetOpacity) ? Math.Clamp(WidgetOpacity, 0, 1) : 0.30;
+        DashboardOpacity = double.IsFinite(DashboardOpacity) ? Math.Clamp(DashboardOpacity, 0, 1) : 0.20;
         if (WidgetLeft is { } left && !double.IsFinite(left)) WidgetLeft = null;
         if (WidgetTop is { } top && !double.IsFinite(top)) WidgetTop = null;
     }

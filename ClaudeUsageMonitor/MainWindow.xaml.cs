@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -35,9 +36,48 @@ public partial class MainWindow : Window
                 await _hub.RefreshAsync();
             }
         };
-        Activated += (_, _) => WidgetButton.Content = App.Current.IsWidgetOpen ? "Hide widget" : "Show widget";
+        Activated += (_, _) => WidgetButtonText.Text = App.Current.IsWidgetOpen ? "Hide widget" : "Show widget";
+        SourceInitialized += (_, _) =>
+        {
+            ApplyGlass();
+            MaximizeFix.Attach(this);
+        };
+        StateChanged += (_, _) => OnStateChanged();
         Render();
     }
+
+    /// <summary>Applies the dashboard opacity and the blur setting, like the widget's glass.</summary>
+    public void ApplyGlass()
+    {
+        var settings = App.Current.Settings;
+
+        // Keep a little alpha even at 0%, so the window still takes clicks and can be moved.
+        var alpha = (byte)Math.Round(Math.Max(settings.DashboardOpacity, 0.02) * 255);
+        var background = new SolidColorBrush(Color.FromArgb(alpha, 0x1C, 0x1B, 0x19));
+        background.Freeze();
+        Root.Background = background;
+
+        GlassEffect.SetBlur(this, settings.WidgetBlur);
+    }
+
+    /// <summary>
+    /// Swaps the maximize glyph and hides the border when maximized. <see cref="MaximizeFix"/> keeps the size to the work area.
+    /// </summary>
+    private void OnStateChanged()
+    {
+        var maximized = WindowState == WindowState.Maximized;
+        Root.BorderThickness = maximized ? new Thickness(0) : new Thickness(1);
+        MaximizeButton.Content = maximized ? "" : "";
+        MaximizeButton.ToolTip = maximized ? "Restore" : "Maximize";
+        AutomationProperties.SetName(MaximizeButton, maximized ? "Restore" : "Maximize");
+    }
+
+    private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void Maximize_Click(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    private void CloseWindow_Click(object sender, RoutedEventArgs e) => Close();
 
     private void OnHubChanged(object? sender, EventArgs e) => Render();
 
@@ -49,12 +89,17 @@ public partial class MainWindow : Window
     private void WidgetButton_Click(object sender, RoutedEventArgs e)
     {
         App.Current.ToggleWidget();
-        WidgetButton.Content = App.Current.IsWidgetOpen ? "Hide widget" : "Show widget";
+        WidgetButtonText.Text = App.Current.IsWidgetOpen ? "Hide widget" : "Show widget";
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
         new SettingsWindow { Owner = this }.ShowDialog();
+    }
+
+    private void AboutButton_Click(object sender, RoutedEventArgs e)
+    {
+        new AboutWindow { Owner = this }.ShowDialog();
     }
 
     /// <summary>
@@ -88,7 +133,7 @@ public partial class MainWindow : Window
     private void Render()
     {
         RefreshButton.IsEnabled = !_hub.IsLoading;
-        SignInButton.Content = _hub.SignedIn ? "Sign out" : "Sign in";
+        SignInButtonText.Text = _hub.SignedIn ? "Sign out" : "Sign in";
 
         if (_hub.IsLoading && _hub.LastUpdated is null)
         {

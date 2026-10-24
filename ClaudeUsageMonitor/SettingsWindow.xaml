@@ -1,11 +1,11 @@
-<Window x:Class="ClaudeUsageMonitor.SettingsWindow"
+<c:GlassDialog x:Class="ClaudeUsageMonitor.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:ClaudeUsageMonitor.Controls"
         Title="Settings"
         Width="440" SizeToContent="Height" ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Background="#FBFAF7" FontFamily="Segoe UI">
-    <StackPanel Margin="20">
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <StackPanel Margin="20,4,20,20">
 
         <TextBlock Text="Refresh" Style="{StaticResource HeadingStyle}" />
         <DockPanel Margin="0,0,0,4">
@@ -25,10 +25,21 @@
                 Margin="0,4,0,4" ValueChanged="OpacitySlider_ValueChanged" AutomationProperties.Name="Background opacity" />
         <TextBlock Style="{StaticResource LabelStyle}" TextWrapping="Wrap" Margin="0,0,0,8"
                    Text="0% is fully see-through, 100% is solid. The default is 30%." />
-        <CheckBox x:Name="BlurCheck" Content="Blur what is behind the widget (frosted glass)" Margin="0,0,0,6"
+        <CheckBox x:Name="BlurCheck" Content="Blur what is behind the widget and dashboard (frosted glass)" Margin="0,0,0,6"
                   Click="BlurCheck_Click" />
         <CheckBox x:Name="TopmostCheck" Content="Keep the widget always on top" Margin="0,0,0,16"
                   Click="TopmostCheck_Click" />
+
+        <TextBlock Text="Dashboard" Style="{StaticResource HeadingStyle}" />
+        <DockPanel>
+            <TextBlock x:Name="DashboardOpacityValueText" DockPanel.Dock="Right" />
+            <TextBlock Text="Background opacity" />
+        </DockPanel>
+        <Slider x:Name="DashboardOpacitySlider" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True"
+                Margin="0,4,0,4" ValueChanged="DashboardOpacitySlider_ValueChanged"
+                AutomationProperties.Name="Dashboard background opacity" />
+        <TextBlock Style="{StaticResource LabelStyle}" TextWrapping="Wrap" Margin="0,0,0,16"
+                   Text="The default is 20% (80% transparent). Settings and About never go below 70%, so their text stays readable." />
 
         <TextBlock Text="Windows" Style="{StaticResource HeadingStyle}" />
         <CheckBox x:Name="StartupCheck" Content="Start with Windows" Margin="0,0,0,6" Click="StartupCheck_Click" />
@@ -39,4 +50,4 @@
         <Button Content="Close" HorizontalAlignment="Right" Padding="22,6" Margin="0,18,0,0"
                 IsDefault="True" IsCancel="True" />
     </StackPanel>
-</Window>
+</c:GlassDialog>

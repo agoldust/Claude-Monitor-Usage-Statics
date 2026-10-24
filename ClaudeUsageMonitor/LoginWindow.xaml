@@ -5,7 +5,7 @@
         Title="Sign in to Claude"
         Width="520" Height="720" MinWidth="420" MinHeight="560"
         WindowStartupLocation="CenterOwner"
-        Background="#FBFAF7" FontFamily="Segoe UI">
+        Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI">
     <DockPanel>
         <Border DockPanel.Dock="Top" Background="{StaticResource CardBrush}" Padding="16,10">
             <TextBlock x:Name="HintText" TextWrapping="Wrap" Style="{StaticResource LabelStyle}"

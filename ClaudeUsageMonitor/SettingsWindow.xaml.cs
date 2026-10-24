@@ -10,7 +10,7 @@ namespace ClaudeUsageMonitor;
 /// Lets the user change the refresh interval, the widget's look, and start-with-Windows.
 /// Every change applies and saves immediately, so the widget previews it live.
 /// </summary>
-public partial class SettingsWindow : Window
+public partial class SettingsWindow : Controls.GlassDialog
 {
     private static readonly (int Seconds, string Text)[] Intervals =
     {
@@ -40,7 +40,9 @@ public partial class SettingsWindow : Window
 
         RefreshCombo.SelectedItem = RefreshCombo.Items.Cast<ComboBoxItem>().First(i => (int)i.Tag == _settings.RefreshSeconds);
         OpacitySlider.Value = Math.Round(_settings.WidgetOpacity * 100);
-        OpacityValueText.Text = $"{OpacitySlider.Value:0}%";
+        OpacityValueText.Text = OpacityLabel(OpacitySlider.Value);
+        DashboardOpacitySlider.Value = Math.Round(_settings.DashboardOpacity * 100);
+        DashboardOpacityValueText.Text = OpacityLabel(DashboardOpacitySlider.Value);
         BlurCheck.IsChecked = _settings.WidgetBlur;
         TopmostCheck.IsChecked = _settings.WidgetTopmost;
         StartupCheck.IsChecked = StartupRegistration.IsEnabled();
@@ -65,7 +67,7 @@ public partial class SettingsWindow : Window
     {
         if (OpacityValueText is not null)
         {
-            OpacityValueText.Text = $"{e.NewValue:0}%";
+            OpacityValueText.Text = OpacityLabel(e.NewValue);
         }
 
         if (_loading)
@@ -76,6 +78,25 @@ public partial class SettingsWindow : Window
         _settings.WidgetOpacity = e.NewValue / 100;
         App.Current.ApplySettings();
     }
+
+    private void DashboardOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (DashboardOpacityValueText is not null)
+        {
+            DashboardOpacityValueText.Text = OpacityLabel(e.NewValue);
+        }
+
+        if (_loading)
+        {
+            return;
+        }
+
+        _settings.DashboardOpacity = e.NewValue / 100;
+        App.Current.ApplySettings();
+    }
+
+    /// <summary>Shows both readings of a slider value, such as "20% (80% transparent)", so neither is mistaken for the other.</summary>
+    private static string OpacityLabel(double percent) => $"{percent:0}% ({100 - percent:0}% transparent)";
 
     private void BlurCheck_Click(object sender, RoutedEventArgs e)
     {

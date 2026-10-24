@@ -144,6 +144,12 @@ public partial class App : Application
         Settings.Normalize();
         Hub.SetInterval(TimeSpan.FromSeconds(Settings.RefreshSeconds));
         _widget?.ApplySettings();
+        _dashboard?.ApplyGlass();
+        foreach (var dialog in Windows.OfType<Controls.GlassDialog>())
+        {
+            dialog.ApplyGlass();
+        }
+
         SaveSettings();
     }
 

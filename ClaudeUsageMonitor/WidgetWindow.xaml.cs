@@ -165,6 +165,8 @@ public partial class WidgetWindow : Window
 
     private void Settings_Click(object sender, RoutedEventArgs e) => new SettingsWindow { Owner = this }.ShowDialog();
 
+    private void About_Click(object sender, RoutedEventArgs e) => new AboutWindow { Owner = this }.ShowDialog();
+
     private void TopmostMenuItem_Click(object sender, RoutedEventArgs e)
     {
         _settings.WidgetTopmost = TopmostMenuItem.IsChecked;

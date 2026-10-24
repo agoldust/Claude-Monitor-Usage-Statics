@@ -11,8 +11,8 @@ public static class Palette
     /// <summary>The main accent, used for normal usage.</summary>
     public static Brush Accent { get; } = Make(0xC1, 0x5F, 0x3C);
 
-    /// <summary>A darker accent, used to mark today.</summary>
-    public static Brush AccentDark { get; } = Make(0x8E, 0x3F, 0x24);
+    /// <summary>A lighter accent, used to mark today on the dark glass.</summary>
+    public static Brush Today { get; } = Make(0xF2, 0xA9, 0x85);
 
     /// <summary>Warning: a limit is getting close.</summary>
     public static Brush Warning { get; } = Make(0xC9, 0x8A, 0x1B);

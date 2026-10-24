@@ -60,9 +60,10 @@
                 <MenuItem Header="Open dashboard" Click="Dashboard_Click" />
                 <MenuItem Header="Settings..." Click="Settings_Click" />
                 <MenuItem x:Name="TopmostMenuItem" Header="Always on top" IsCheckable="True" Click="TopmostMenuItem_Click" />
+                <MenuItem Header="About..." Click="About_Click" />
                 <Separator />
                 <MenuItem Header="Close widget" Click="Close_Click" />
-                <MenuItem Header="Exit Claude Usage Monitor" Click="Exit_Click" />
+                <MenuItem Header="Exit" Click="Exit_Click" />
             </ContextMenu>
         </Border.ContextMenu>
 
