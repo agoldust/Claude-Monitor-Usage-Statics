@@ -5,6 +5,7 @@
         Title="Claude Usage Monitor"
         Width="1100" Height="860" MinWidth="760" MinHeight="560"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="CanResize"
+        Icon="pack://application:,,,/Assets/app.ico"
         Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI">
 
     <!-- Borderless glass window: the header row is the drag area, and the edges still resize. -->
@@ -46,9 +47,14 @@
 
         <!-- Top bar: title, actions, and window buttons. Empty space here drags the window. -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,6,16" LastChildFill="False">
-            <StackPanel DockPanel.Dock="Left" Margin="0,4,0,0">
-                <TextBlock Text="Claude Usage Monitor" FontSize="22" FontWeight="SemiBold" />
-                <TextBlock x:Name="StatusText" Style="{StaticResource LabelStyle}" Text="Loading..." />
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="0,4,0,0">
+                <Image Source="pack://application:,,,/Assets/app-logo.png" Width="42" Height="42" Margin="0,0,12,0"
+                       VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality"
+                       AutomationProperties.Name="Claude Usage Monitor logo" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Claude Usage Monitor" FontSize="22" FontWeight="SemiBold" />
+                    <TextBlock x:Name="StatusText" Style="{StaticResource LabelStyle}" Text="Loading..." />
+                </StackPanel>
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,0,0,0"
                         WindowChrome.IsHitTestVisibleInChrome="True">

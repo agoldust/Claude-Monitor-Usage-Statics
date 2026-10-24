@@ -19,8 +19,16 @@ public static class AppInfo
     /// <summary>The author's name.</summary>
     public const string Author = "Akbar Goldoust";
 
+    /// <summary>A short public bio for the About window.</summary>
+    public const string AuthorBio =
+        "Software developer building Windows desktop apps with C#, .NET 8 and WPF. " +
+        "This project covers Win32 interop, embedded web views (WebView2), live data dashboards and AI-assisted development with Claude Code.";
+
     /// <summary>The author's GitHub profile.</summary>
     public const string ProfileUrl = "https://github.com/agoldust";
+
+    /// <summary>The author's LinkedIn profile. Empty hides the link in the About window.</summary>
+    public const string LinkedInUrl = "";
 
     /// <summary>The source code repository.</summary>
     public const string RepositoryUrl = "https://github.com/agoldust/Claude-Monitor-Usage-Statics";
@@ -92,7 +100,9 @@ public static class AppInfo
     /// <param name="url">One of the link constants in this class.</param>
     public static void OpenLink(string url)
     {
-        if (url is not (ProfileUrl or RepositoryUrl or LicenseUrl or IssuesUrl))
+        var allowed = url is ProfileUrl or RepositoryUrl or LicenseUrl or IssuesUrl ||
+                      (LinkedInUrl.Length > 0 && url == LinkedInUrl);
+        if (!allowed)
         {
             throw new ArgumentException("Only the app's own links can be opened.", nameof(url));
         }

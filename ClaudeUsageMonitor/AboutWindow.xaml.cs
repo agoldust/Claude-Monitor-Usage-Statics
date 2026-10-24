@@ -20,6 +20,7 @@ public partial class AboutWindow : Controls.GlassDialog
         VersionLine.Text = $"Version {AppInfo.Version}";
         DescriptionText.Text = AppInfo.Description;
         LicenseText.Text = $"{AppInfo.License} · {AppInfo.Copyright}";
+        LinkedInLink.Visibility = AppInfo.LinkedInUrl.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
         AddBuildRow("Version", AppInfo.Version);
         AddBuildRow("Built", AppInfo.BuildDate?.ToString("g", CultureInfo.CurrentCulture) ?? "unknown");

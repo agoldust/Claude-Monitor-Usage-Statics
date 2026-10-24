@@ -130,6 +130,7 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
             <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="Icon" Value="pack://application:,,,/Assets/app.ico" />
             <Setter Property="WindowChrome.WindowChrome">
                 <Setter.Value>
                     <WindowChrome CaptionHeight="40" ResizeBorderThickness="5" GlassFrameThickness="0"

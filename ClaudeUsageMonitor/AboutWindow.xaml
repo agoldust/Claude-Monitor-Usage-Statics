@@ -36,10 +36,9 @@
 
                 <!-- Header -->
                 <DockPanel Margin="0,0,0,16">
-                    <c:RingGauge DockPanel.Dock="Left" Width="64" Height="64" Thickness="7" Value="72"
-                                 InnerValue="45" Margin="0,0,16,0" Focusable="False"
-                                 TrackBrush="#33FFFFFF" InnerBrush="#CCFFFFFF" TextBrush="White"
-                                 AutomationProperties.Name="App logo" />
+                    <Image DockPanel.Dock="Left" Source="pack://application:,,,/Assets/app-logo.png" Width="72" Height="72"
+                           Margin="0,0,16,0" RenderOptions.BitmapScalingMode="HighQuality"
+                           AutomationProperties.Name="App logo" />
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{x:Static s:AppInfo.Name}" FontSize="22" FontWeight="SemiBold" />
                         <TextBlock x:Name="VersionLine" Style="{StaticResource LabelStyle}" />
@@ -49,19 +48,34 @@
 
                 <!-- Author -->
                 <Border Style="{StaticResource AboutCard}">
-                    <StackPanel>
-                        <TextBlock Text="Author" Style="{StaticResource HeadingStyle}" />
-                        <TextBlock Margin="0,0,0,6">
-                            <Run Text="Made by " /><Run Text="{x:Static s:AppInfo.Author}" FontWeight="SemiBold" />
-                        </TextBlock>
-                        <TextBlock Style="{StaticResource Bullet}">
-                            <Hyperlink Tag="{x:Static s:AppInfo.ProfileUrl}" Click="Link_Click">GitHub profile</Hyperlink>
-                            <Run Text="  ·  " />
-                            <Hyperlink Tag="{x:Static s:AppInfo.RepositoryUrl}" Click="Link_Click">Source code</Hyperlink>
-                            <Run Text="  ·  " />
-                            <Hyperlink Tag="{x:Static s:AppInfo.IssuesUrl}" Click="Link_Click">Report a problem</Hyperlink>
-                        </TextBlock>
-                    </StackPanel>
+                    <DockPanel>
+                        <Ellipse DockPanel.Dock="Left" Width="88" Height="88" Margin="0,2,16,0" VerticalAlignment="Top"
+                                 Stroke="#40FFFFFF" StrokeThickness="2"
+                                 AutomationProperties.Name="{x:Static s:AppInfo.Author}">
+                            <Ellipse.Fill>
+                                <ImageBrush ImageSource="pack://application:,,,/Assets/author.jpg" Stretch="UniformToFill" />
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <StackPanel>
+                            <TextBlock Text="Author" Style="{StaticResource LabelStyle}" />
+                            <TextBlock Text="{x:Static s:AppInfo.Author}" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,6" />
+                            <TextBlock Text="{x:Static s:AppInfo.AuthorBio}" Style="{StaticResource Bullet}" />
+                            <WrapPanel Margin="0,2,0,0">
+                                <TextBlock Margin="0,0,14,4">
+                                    <Hyperlink Tag="{x:Static s:AppInfo.ProfileUrl}" Click="Link_Click">GitHub profile</Hyperlink>
+                                </TextBlock>
+                                <TextBlock x:Name="LinkedInLink" Margin="0,0,14,4">
+                                    <Hyperlink Tag="{x:Static s:AppInfo.LinkedInUrl}" Click="Link_Click">LinkedIn</Hyperlink>
+                                </TextBlock>
+                                <TextBlock Margin="0,0,14,4">
+                                    <Hyperlink Tag="{x:Static s:AppInfo.RepositoryUrl}" Click="Link_Click">Source code</Hyperlink>
+                                </TextBlock>
+                                <TextBlock Margin="0,0,14,4">
+                                    <Hyperlink Tag="{x:Static s:AppInfo.IssuesUrl}" Click="Link_Click">Report a problem</Hyperlink>
+                                </TextBlock>
+                            </WrapPanel>
+                        </StackPanel>
+                    </DockPanel>
                 </Border>
 
                 <!-- License -->

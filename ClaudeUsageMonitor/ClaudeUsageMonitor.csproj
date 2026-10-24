@@ -10,6 +10,8 @@
     <AssemblyName>ClaudeUsageMonitor</AssemblyName>
     <RootNamespace>ClaudeUsageMonitor</RootNamespace>
     <Version>0.2.0</Version>
+    <!-- Exe icon for File Explorer, the taskbar and shortcuts. Source art is in ..\resources. -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Product>Claude Usage Monitor</Product>
     <Authors>Akbar Goldoust</Authors>
     <Copyright>Copyright (c) 2026 Akbar Goldoust</Copyright>
@@ -20,6 +22,14 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Author photo for the About window (the author's public GitHub avatar). -->
+    <Resource Include="Assets\author.jpg" />
+    <!-- Window icons and the in-app logo. -->
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\app-logo.png" />
   </ItemGroup>
 
   <ItemGroup>

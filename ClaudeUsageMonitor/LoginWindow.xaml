@@ -5,6 +5,7 @@
         Title="Sign in to Claude"
         Width="520" Height="720" MinWidth="420" MinHeight="560"
         WindowStartupLocation="CenterOwner"
+        Icon="pack://application:,,,/Assets/app.ico"
         Background="{StaticResource WindowBrush}" Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI">
     <DockPanel>
         <Border DockPanel.Dock="Top" Background="{StaticResource CardBrush}" Padding="16,10">
