@@ -1,0 +1,136 @@
+<c:GlassDialog x:Class="ClaudeUsageMonitor.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="clr-namespace:ClaudeUsageMonitor.Controls"
+        xmlns:s="clr-namespace:ClaudeUsageMonitor.Services"
+        Title="About Claude Usage Monitor"
+        Width="560" Height="700" MinWidth="420" MinHeight="420"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+    <c:GlassDialog.Resources>
+        <Style x:Key="AboutCard" TargetType="Border" BasedOn="{StaticResource CardStyle}">
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        <Style x:Key="Bullet" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style x:Key="FolderButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+    </c:GlassDialog.Resources>
+
+    <DockPanel>
+        <!-- Bottom buttons -->
+        <DockPanel DockPanel.Dock="Bottom" Margin="24,8,24,16" LastChildFill="False">
+            <TextBlock x:Name="CopiedText" DockPanel.Dock="Left" VerticalAlignment="Center"
+                       Style="{StaticResource LabelStyle}" />
+            <Button DockPanel.Dock="Right" Content="Close" Padding="22,6" IsDefault="True" IsCancel="True" />
+            <Button DockPanel.Dock="Right" Content="Copy version info" Padding="14,6" Margin="0,0,8,0"
+                    Click="CopyInfo_Click" ToolTip="Copy the version details, for example for a bug report" />
+        </DockPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,20,24,8">
+
+                <!-- Header -->
+                <DockPanel Margin="0,0,0,16">
+                    <c:RingGauge DockPanel.Dock="Left" Width="64" Height="64" Thickness="7" Value="72"
+                                 InnerValue="45" Margin="0,0,16,0" Focusable="False"
+                                 TrackBrush="#33FFFFFF" InnerBrush="#CCFFFFFF" TextBrush="White"
+                                 AutomationProperties.Name="App logo" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{x:Static s:AppInfo.Name}" FontSize="22" FontWeight="SemiBold" />
+                        <TextBlock x:Name="VersionLine" Style="{StaticResource LabelStyle}" />
+                    </StackPanel>
+                </DockPanel>
+                <TextBlock x:Name="DescriptionText" TextWrapping="Wrap" Margin="0,0,0,16" FontSize="13" />
+
+                <!-- Author -->
+                <Border Style="{StaticResource AboutCard}">
+                    <StackPanel>
+                        <TextBlock Text="Author" Style="{StaticResource HeadingStyle}" />
+                        <TextBlock Margin="0,0,0,6">
+                            <Run Text="Made by " /><Run Text="{x:Static s:AppInfo.Author}" FontWeight="SemiBold" />
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource Bullet}">
+                            <Hyperlink Tag="{x:Static s:AppInfo.ProfileUrl}" Click="Link_Click">GitHub profile</Hyperlink>
+                            <Run Text="  ·  " />
+                            <Hyperlink Tag="{x:Static s:AppInfo.RepositoryUrl}" Click="Link_Click">Source code</Hyperlink>
+                            <Run Text="  ·  " />
+                            <Hyperlink Tag="{x:Static s:AppInfo.IssuesUrl}" Click="Link_Click">Report a problem</Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- License -->
+                <Border Style="{StaticResource AboutCard}">
+                    <StackPanel>
+                        <TextBlock Text="License" Style="{StaticResource HeadingStyle}" />
+                        <TextBlock x:Name="LicenseText" Style="{StaticResource Bullet}" />
+                        <TextBlock Style="{StaticResource Bullet}">
+                            <Run Text="Free to use, change and share, with the copyright notice kept. Provided as is, without warranty. " />
+                            <Hyperlink Tag="{x:Static s:AppInfo.LicenseUrl}" Click="Link_Click">Read the license</Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Version and build -->
+                <Border Style="{StaticResource AboutCard}">
+                    <StackPanel>
+                        <TextBlock Text="Version and build" Style="{StaticResource HeadingStyle}" />
+                        <Grid x:Name="BuildGrid">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="130" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Data and privacy -->
+                <Border Style="{StaticResource AboutCard}">
+                    <StackPanel>
+                        <TextBlock Text="Your data and privacy" Style="{StaticResource HeadingStyle}" />
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="• Token charts and costs are read from Claude Code's local logs in %USERPROFILE%\.claude. They are not uploaded anywhere." />
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="• Account details are read from Claude Code's local settings. Claude Code's login tokens are never stored, shown or sent by the app." />
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="• Live limits come from claude.ai after you sign in inside the app's own browser window. Your password and session cookie stay in that browser; the app never reads them." />
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="• The app's own code contacts only claude.ai and sends no analytics or telemetry. The sign-in window loads the claude.ai sign-in page and may open your sign-in provider (for example Google). The Microsoft Edge WebView2 component may run its own Microsoft background checks." />
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="• The app stores your settings, a diagnostic log (status codes, page addresses without query strings, and field names; no account data), and the claude.ai sign-in session. Sign out clears the session." />
+                        <WrapPanel Margin="0,6,0,0">
+                            <Button Style="{StaticResource FolderButton}" Content="Settings folder" Click="OpenSettingsFolder_Click" />
+                            <Button Style="{StaticResource FolderButton}" Content="Log folder" Click="OpenLogFolder_Click" />
+                            <Button Style="{StaticResource FolderButton}" Content="Sign-in data folder" Click="OpenSessionFolder_Click" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Disclaimer -->
+                <Border Style="{StaticResource AboutCard}">
+                    <StackPanel>
+                        <TextBlock Text="Disclaimer" Style="{StaticResource HeadingStyle}" />
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="This is an independent project. It is not made, endorsed or supported by Anthropic. Claude and Claude Code are trademarks of Anthropic." />
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="Live limits use claude.ai endpoints that are not a public API and may change without notice. Costs are estimates from list prices, not a bill." />
+                    </StackPanel>
+                </Border>
+
+                <!-- Credits -->
+                <Border Style="{StaticResource AboutCard}">
+                    <StackPanel>
+                        <TextBlock Text="Credits" Style="{StaticResource HeadingStyle}" />
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="Built with .NET 8 (WPF) and Microsoft Edge WebView2. Developed with help from Claude Code." />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</c:GlassDialog>
