@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Reviews Claude Usage Monitor C# and XAML for real bugs, error-handling gaps and security or privacy problems. Read-only. Use after code changes and before commits.
+description: (Sonnet) Reviews Claude Usage Monitor C# and XAML for real bugs, error-handling gaps and security or privacy problems. Read-only. Use after code changes and before commits.
 model: sonnet
 tools: Read, Grep, Glob, Bash
 ---

@@ -1,6 +1,6 @@
 ---
 name: comment-writer
-description: Adds XML doc comments (///) to undocumented C# members in Claude Usage Monitor so API reference pages can be generated later. Comments only, never code. Cheapest model.
+description: (Haiku) Adds XML doc comments (///) to undocumented C# members in Claude Usage Monitor so API reference pages can be generated later. Comments only, never code. Cheapest model.
 model: haiku
 tools: Read, Edit, Grep, Glob, Bash
 ---

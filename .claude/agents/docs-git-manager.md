@@ -1,6 +1,6 @@
 ---
 name: docs-git-manager
-description: Keeps the Claude Usage Monitor README and docs/ in step with the code, and makes clean local git commits. Run after the code is reviewed and fixed. Never pushes.
+description: (Sonnet) Keeps the Claude Usage Monitor README and docs/ in step with the code, and makes clean local git commits. Run after the code is reviewed and fixed. Never pushes.
 model: sonnet
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
@@ -16,7 +16,7 @@ F:\Work\Claude_Monitor_Usage_Statics. You write docs for people who will use or 
 - Only commit when `dotnet build` succeeds. Build with `dotnet build ClaudeUsageMonitor\ClaudeUsageMonitor.csproj -c Release` after putting dotnet on PATH.
 - Make a few logical commits: project skeleton, data layer, UI, docs, agents. Use imperative subjects.
 - Every commit message ends with this line, exactly:
-  `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>`
+  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
 - Never push, add remotes, force, amend, or rewrite history.
 
 ## Docs
