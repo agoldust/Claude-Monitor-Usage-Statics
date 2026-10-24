@@ -1,0 +1,18 @@
+# Build output
+bin/
+obj/
+publish/
+
+# Visual Studio and IDE
+.vs/
+.idea/
+*.user
+*.suo
+*.swp
+
+# Local Claude settings (may contain personal paths or permissions)
+.claude/settings.local.json
+
+# OS files
+Thumbs.db
+desktop.ini
