@@ -18,6 +18,15 @@ dotnet run --project ClaudeUsageMonitor\ClaudeUsageMonitor.csproj -c Release
 
 Start only the widget with `--widget`.
 
+## Installer
+
+```
+winget install JRSoftware.InnoSetup
+powershell -ExecutionPolicy Bypass -File installer\build-installer.ps1
+```
+
+This publishes a self-contained win-x64 build (no .NET install needed on the target PC) and writes `publish\installer\ClaudeUsageMonitor-Setup-<version>.exe`. Setup installs for the current user without administrator rights, offers a desktop shortcut and start with Windows, installs the WebView2 Runtime if it is missing, and can launch the app when done. The version comes from `<Version>` in the project file.
+
 ## Features
 
 - **Live plan limits.** Sign in to claude.ai from the app; limits are fetched from claude.ai's internal web endpoints (not a public API, so they may change without notice). Shown as ring gauges with a pace marker.
