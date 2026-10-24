@@ -20,7 +20,7 @@ public sealed class ClaudeWebSession : IDisposable
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudeUsageMonitor", "WebView2");
 
     // Only fixed API paths are allowed, so nothing from a response can steer a request elsewhere.
-    private static readonly Regex AllowedPath = new("^/api/[A-Za-z0-9/_-]+$", RegexOptions.CultureInvariant);
+    private static readonly Regex AllowedPath = new(@"^/api/[A-Za-z0-9/_-]+\z", RegexOptions.CultureInvariant);
 
     private static readonly TimeSpan NavigationTimeout = TimeSpan.FromSeconds(30);
 
@@ -73,7 +73,14 @@ public sealed class ClaudeWebSession : IDisposable
         core.Settings.IsStatusBarEnabled = false;
 
         // A small same-origin page is enough; the full claude.ai app is not needed.
-        await NavigateAsync(core, new Uri(BaseUri, "robots.txt"));
+        // With no connection (for example right after Windows starts) the page is an error page on another origin,
+        // so fail here: the start is then retried on the next refresh instead of fetching from the error page.
+        if (!await NavigateAsync(core, new Uri(BaseUri, "robots.txt")))
+        {
+            DebugLog.Write("Web session: claude.ai could not be reached");
+            throw new InvalidOperationException("claude.ai could not be reached. Check the internet connection.");
+        }
+
         DebugLog.Write($"Web session: ready on {DebugLog.SafeUrl(core.Source)}");
     }
 
@@ -146,15 +153,18 @@ public sealed class ClaudeWebSession : IDisposable
 
     /// <summary>
     /// Signs out by clearing the cookies and stored data of the shared WebView2 profile.
+    /// Starts the hidden browser first if needed, so sign-out never reports success without clearing anything.
     /// </summary>
-    public async Task SignOutAsync()
+    /// <param name="parentWindow">The handle of a window to host the hidden browser if it is not running yet.</param>
+    /// <exception cref="InvalidOperationException">The browser could not start, so the session could not be cleared.</exception>
+    public async Task SignOutAsync(IntPtr parentWindow)
     {
-        if (_ready is null || _controller is null)
+        await InitializeAsync(parentWindow);
+        if (_controller is null)
         {
-            return;
+            throw new InvalidOperationException("The web session was closed.");
         }
 
-        await _ready;
         await _controller.CoreWebView2.Profile.ClearBrowsingDataAsync();
     }
 
@@ -163,16 +173,21 @@ public sealed class ClaudeWebSession : IDisposable
     /// </summary>
     /// <param name="core">The page to navigate.</param>
     /// <param name="uri">The address to open.</param>
-    internal static async Task NavigateAsync(CoreWebView2 core, Uri uri)
+    /// <returns>
+    /// False when the server could not be reached at all (no HTTP response). An HTTP error page still counts as
+    /// reached, because the page is then on the right origin.
+    /// </returns>
+    internal static async Task<bool> NavigateAsync(CoreWebView2 core, Uri uri)
     {
-        var done = new TaskCompletionSource();
-        void OnCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e) => done.TrySetResult();
+        var done = new TaskCompletionSource<bool>();
+        void OnCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e) =>
+            done.TrySetResult(e.IsSuccess || e.HttpStatusCode != 0);
 
         core.NavigationCompleted += OnCompleted;
         try
         {
             core.Navigate(uri.AbsoluteUri);
-            await done.Task.WaitAsync(NavigationTimeout);
+            return await done.Task.WaitAsync(NavigationTimeout);
         }
         finally
         {

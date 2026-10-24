@@ -14,11 +14,16 @@ public static class StartupRegistration
     /// <summary>The command-line switch that opens only the widget.</summary>
     public const string WidgetSwitch = "--widget";
 
-    /// <summary>True when the app is registered to start with Windows.</summary>
+    /// <summary>
+    /// True when the app is registered to start with Windows from its current location.
+    /// An entry left behind by a moved copy of the app counts as not registered.
+    /// </summary>
     public static bool IsEnabled()
     {
         using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
-        return key?.GetValue(ValueName) is string;
+        return key?.GetValue(ValueName) is string command &&
+               Environment.ProcessPath is not null &&
+               (command == Command(widgetOnly: true) || command == Command(widgetOnly: false));
     }
 
     /// <summary>
@@ -32,12 +37,18 @@ public static class StartupRegistration
         using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
         if (enabled)
         {
-            var exe = Environment.ProcessPath ?? throw new InvalidOperationException("The app's location is unknown.");
-            key.SetValue(ValueName, $"\"{exe}\"" + (widgetOnly ? $" {WidgetSwitch}" : ""));
+            key.SetValue(ValueName, Command(widgetOnly));
         }
         else
         {
             key.DeleteValue(ValueName, throwOnMissingValue: false);
         }
+    }
+
+    /// <summary>The Run-key command for this exe, such as "C:\Apps\ClaudeUsageMonitor.exe" --widget.</summary>
+    private static string Command(bool widgetOnly)
+    {
+        var exe = Environment.ProcessPath ?? throw new InvalidOperationException("The app's location is unknown.");
+        return $"\"{exe}\"" + (widgetOnly ? $" {WidgetSwitch}" : "");
     }
 }

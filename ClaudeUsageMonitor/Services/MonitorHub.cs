@@ -142,7 +142,7 @@ public sealed class MonitorHub : IDisposable
     /// <summary>Clears the claude.ai session and forgets the live data.</summary>
     public async Task SignOutAsync()
     {
-        await _webSession.SignOutAsync();
+        await _webSession.SignOutAsync(new WindowInteropHelper(_browserHost).Handle);
         SetLive(new LiveUsageResult(LiveUsageStatus.SignedOut));
         OnChanged();
     }
@@ -195,7 +195,8 @@ public sealed class MonitorHub : IDisposable
         }
         catch (Exception ex)
         {
-            DebugLog.Write($"Redraw failed: {ex.GetType().Name}: {ex.Message}");
+            // Type only: messages can contain arbitrary text, and the log must stay free of account data.
+            DebugLog.Write($"Redraw failed: {ex.GetType().Name}");
         }
     }
 
