@@ -6,11 +6,16 @@
 - Read account and plan details from local files (no tokens)
 - Totals, per-day, per-model and per-project views
 - Estimated cost from a price table
-- Project subagents for review, docs/git and comments
+- Sign-in to claude.ai (WebView2)
+- Live usage limits from claude.ai
+- Graphical dashboard (ring gauges, charts, collapsible tables)
+- Always-on-top glass widget with settings
+- Start with Windows
+- Debug log
+- Five project subagents: review, comments, docs/git, error checking, UI advice
 
-## Next phase
+## Open
 
-- Sign-in with a Claude account
-- Live usage limits from Claude (not just local logs)
 - Verify prices in `PricingTable.cs` against Anthropic's pricing page
 - Confirm the meaning of `SubscriptionTypeSource` and `OrganizationType`
+- Live limits rely on claude.ai internal endpoints that may change
