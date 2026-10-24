@@ -23,7 +23,11 @@ Start only the widget with `--widget`.
 - **Live plan limits.** Sign in to claude.ai from the app; limits are fetched from claude.ai's internal web endpoints (not a public API, so they may change without notice). Shown as ring gauges with a pace marker.
 - **Graphical dashboard.** Ring gauges, a 14-day bar chart, model share, token mix, hour-of-day chart, and collapsible account details and tables. Press F5 to refresh.
 - **Widget.** Always-on-top, translucent window with optional blur. Opacity defaults to 30%.
-- **Settings.** Refresh interval (30 seconds to 1 hour), widget opacity, blur, always on top, start with Windows.
+- **Dark glass look.** The dashboard, widget, Settings and About share one dark glass theme with blur. The dashboard opacity defaults to 20% (80% transparent); Settings and About never go below 70% so their text stays readable.
+- **Settings.** Refresh interval (30 seconds to 1 hour), widget and dashboard opacity, blur, always on top, start with Windows.
+- **About.** Author, MIT license, version and build details (with a copy button for bug reports), a data and privacy summary, a disclaimer and credits.
+
+Architecture diagrams are in [docs/DIAGRAMS.md](docs/DIAGRAMS.md).
 - **Start with Windows.** Registers the exe in the current user's Run key. The path is the exe's location at the time you turn it on; turn it off and on again if you move the app. Optionally opens only the widget.
 - **Single instance.** Starting the app again shows the dashboard. The app exits when both windows are closed.
 - **Local usage.** Tokens, requests and estimated cost for today, 7 days, 30 days and all time, from Claude Code logs.

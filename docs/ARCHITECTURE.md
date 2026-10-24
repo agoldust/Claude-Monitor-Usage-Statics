@@ -1,21 +1,25 @@
 ﻿# Architecture
 
+Diagrams of the system, components, refresh cycle, sign-in, startup and agent workflow are in [DIAGRAMS.md](DIAGRAMS.md).
+
 ## Layout
 
 ```
 ClaudeUsageMonitor\
-  App.xaml(.cs)            entry; single instance (named mutex); --widget switch
-  MainWindow.xaml(.cs)     graphical dashboard
+  App.xaml(.cs)            entry; single instance (named mutex); --widget switch; dark glass theme
+  MainWindow.xaml(.cs)     graphical dashboard (borderless dark glass, own title buttons)
   WidgetWindow.xaml(.cs)   always-on-top glass widget
-  SettingsWindow.xaml(.cs) refresh interval, opacity, blur, always on top, start with Windows
-  LoginWindow.xaml(.cs)    WebView2 sign-in to claude.ai
-  Controls\                RingGauge, Palette, GlassEffect (blur)
+  SettingsWindow.xaml(.cs) refresh interval, opacities, blur, always on top, start with Windows
+  AboutWindow.xaml(.cs)    author, license, version and build, data and privacy, disclaimer, credits
+  LoginWindow.xaml(.cs)    WebView2 sign-in to claude.ai (normal frame: WebView2 cannot draw in a transparent window)
+  Controls\                RingGauge, Palette, GlassEffect (blur), GlassDialog (base for Settings and About),
+                           MaximizeFix (borderless maximize to the current monitor's work area)
   Models\                  AccountInfo, UsageRecord, UsageSummary, GridRows,
                            LiveUsage, AppSettings
   Services\                ClaudePaths, ClaudeLogReader, AccountReader, PricingTable,
                            UsageAggregator, UsageFormatting,
                            ClaudeWebSession, LiveUsageService, LiveUsageParser,
-                           MonitorHub, SettingsStore, StartupRegistration, DebugLog
+                           MonitorHub, SettingsStore, StartupRegistration, AppInfo, DebugLog
 .claude\agents\            project subagents
 docs\                      documentation
 ```
