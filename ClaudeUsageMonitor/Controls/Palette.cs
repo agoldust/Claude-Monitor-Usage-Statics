@@ -20,6 +20,9 @@ public static class Palette
     /// <summary>Critical: a limit is nearly used up or will run out before it resets.</summary>
     public static Brush Critical { get; } = Make(0xB3, 0x26, 0x1E);
 
+    /// <summary>Critical, lightened for text, which needs more contrast on the dark glass than a ring does.</summary>
+    public static Brush CriticalText { get; } = Make(0xFF, 0x8A, 0x80);
+
     /// <summary>Opus models.</summary>
     public static Brush Opus { get; } = Make(0xC1, 0x5F, 0x3C);
 

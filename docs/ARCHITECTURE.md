@@ -16,7 +16,7 @@ ClaudeUsageMonitor\
   Controls\                RingGauge, Palette, GlassEffect (blur), GlassDialog (base for Settings and About),
                            MaximizeFix (borderless maximize to the current monitor's work area)
   Models\                  AccountInfo, UsageRecord, UsageSummary, GridRows,
-                           LiveUsage, AppSettings
+                           LiveUsage, ResetCountdown, AppSettings
   Services\                ClaudePaths, ClaudeLogReader, AccountReader, PricingTable,
                            UsageAggregator, UsageFormatting,
                            ClaudeWebSession, LiveUsageService, LiveUsageParser,
@@ -34,8 +34,9 @@ claude.ai /api/... -> ClaudeWebSession (hidden WebView2) -> LiveUsageService    
                                                          -> LiveUsageParser -> LiveUsage +               --> WidgetWindow
 ```
 
-- `MonitorHub` owns the readers, the web session and one timer. Live fetches are serialized and the next refresh time is tracked. `ClaudeWebSession` times out requests (20 s fetch, 30 s DevTools call, 30 s browser start), restarts the hidden browser after a timeout and closes late-starting browsers (generation counter). Session logs are opened with `FileShare.ReadWrite|Delete`.
-- `MainWindow` picks a Compact (< 860 px), Normal or Wide (>= 1540 px) layout from its width. A single refresh (timer, F5 or button) feeds every open window through its `Changed` event, so the dashboard and widget always show the same data.
+- `MonitorHub` owns the readers, the web session, the refresh timer and a reset timer. Live fetches are serialized and the next refresh time is tracked. After each live result, `ScheduleResetRefresh` arms a one-off refresh 5 s after the next limit reset, but only when that comes before the next timed refresh; if a refresh is already running, it retries after 3 s. `ClaudeWebSession` times out requests (20 s fetch, 30 s DevTools call, 30 s browser start), restarts the hidden browser after a timeout and closes late-starting browsers (generation counter). Session logs are opened with `FileShare.ReadWrite|Delete`.
+- `MainWindow` picks one of four layouts from its window width: Compact (< 860 px), Normal (860 to 1539 px), Wide (1540 to 2299 px, two columns) or ExtraWide (>= 2300 px, three columns). `ApplyLayout` places the sections in code and sets the third grid column's width to zero outside ExtraWide. A single refresh (timer, reset timer, F5 or button) feeds every open window through its `Changed` event, so the dashboard and widget always show the same data.
+- `ResetCountdown` (the `Reset` property of each `LimitRow`) holds the reset text for the dashboard (`Text`) and the widget (`Short`), built by `UsageFormatting.FormatReset` and `FormatResetShort`. `MainWindow` and `WidgetWindow` each run a 1-second `DispatcherTimer` that calls `UpdateCountdowns`, which only updates these texts. `UsageFormatting.DescribeAvailability` produces the "Next reset" line on the dashboard and the red "tokens available again" line, which the widget shows only while a limit is used up.
 - `ClaudeLogReader` returns one deduplicated `UsageRecord` per API response; `AccountReader` builds `AccountInfo`.
 - `UsageAggregator` builds totals and the per-day, per-model, token-mix and hour-of-day figures, pricing each record with `PricingTable`.
 - `LiveUsageService` fetches `/api/organizations` then `/api/organizations/{uuid}/usage` and returns a `LiveUsageResult` (never throws). `ClaudeWebSession` runs requests inside the browser via `Runtime.evaluate` and only allows `/api/...` paths.

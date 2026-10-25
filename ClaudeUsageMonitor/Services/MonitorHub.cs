@@ -18,6 +18,10 @@ public sealed class MonitorHub : IDisposable
     private readonly LiveUsageService _liveService;
     private readonly DispatcherTimer _timer = new();
 
+    // Refreshes just after a limit resets, so freed-up tokens show at once instead of at the next timed refresh.
+    private readonly DispatcherTimer _resetTimer = new();
+    private static readonly TimeSpan ResetGrace = TimeSpan.FromSeconds(5);
+
     // A timed refresh and the fetch right after sign-in can overlap; one live fetch at a time,
     // so a timeout that restarts the hidden browser cannot break a fetch already in progress.
     private readonly SemaphoreSlim _liveGate = new(1, 1);
@@ -43,6 +47,18 @@ public sealed class MonitorHub : IDisposable
 
         SetInterval(TimeSpan.FromSeconds(settings.RefreshSeconds));
         _timer.Tick += async (_, _) => await RefreshAsync();
+        _resetTimer.Tick += async (_, _) =>
+        {
+            if (IsLoading)
+            {
+                // A refresh is running and would ignore this one; try again shortly instead of dropping it.
+                _resetTimer.Interval = TimeSpan.FromSeconds(3);
+                return;
+            }
+
+            _resetTimer.Stop();
+            await RefreshAsync();
+        };
     }
 
     /// <summary>Raised on the UI thread when loading starts or finishes, so windows can redraw.</summary>
@@ -235,6 +251,24 @@ public sealed class MonitorHub : IDisposable
                 LastGoodLive = null;
                 break;
         }
+
+        ScheduleResetRefresh();
+    }
+
+    /// <summary>
+    /// Arms a one-off refresh a few seconds after the next limit reset, when that comes before the next timed
+    /// refresh. claude.ai needs a moment to report the reset, hence the grace period.
+    /// </summary>
+    private void ScheduleResetRefresh()
+    {
+        _resetTimer.Stop();
+        var now = DateTimeOffset.Now;
+        var next = LastGoodLive?.Limits.Select(l => l.ResetsAt).Where(r => r > now).Min();
+        if (next is { } reset && reset + ResetGrace - now is var wait && wait < _timer.Interval)
+        {
+            _resetTimer.Interval = wait;
+            _resetTimer.Start();
+        }
     }
 
     private void OnChanged()
@@ -255,6 +289,7 @@ public sealed class MonitorHub : IDisposable
     public void Dispose()
     {
         _timer.Stop();
+        _resetTimer.Stop();
         _webSession.Dispose();
         _browserHost.Close();
     }

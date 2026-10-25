@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     // not the content width, because each layout changes the margins, which would change the content width again.
     private const double CompactLayoutBelow = 860;
     private const double WideLayoutFrom = 1540;
+    private const double ExtraWideLayoutFrom = 2300;
 
     // Width of the custom scroll bar in App.xaml. Its space counts toward the right-hand spacing.
     private const double ScrollBarWidth = 10;
@@ -30,21 +31,30 @@ public partial class MainWindow : Window
     // Below this window width the top-bar actions move to a second row under the title.
     private const double TopBarTwoRowsBelow = 1000;
 
+    // Below this window width the Refresh button also drops its label, so the action row fits.
+    private const double RefreshIconOnlyBelow = 440;
+
     private readonly MonitorHub _hub;
+
+    // Ticks the reset countdowns every second between data refreshes.
+    private readonly System.Windows.Threading.DispatcherTimer _countdown = new() { Interval = TimeSpan.FromSeconds(1) };
     private LayoutMode? _layout;
     private bool? _topBarTwoRows;
 
     /// <summary>How the dashboard sections are arranged for the available width.</summary>
     private enum LayoutMode
     {
-        /// <summary>Small screens: one column, two totals per row, shorter charts, fewer axis labels.</summary>
+        /// <summary>Small, phone-like windows: one column, two totals per row, shorter charts, fewer axis labels.</summary>
         Compact,
 
         /// <summary>One column with the model share and token mix side by side.</summary>
         Normal,
 
         /// <summary>Large screens: two columns of sections and taller charts.</summary>
-        Wide
+        Wide,
+
+        /// <summary>Very large screens: three columns of sections.</summary>
+        ExtraWide
     }
 
     /// <summary>
@@ -56,7 +66,13 @@ public partial class MainWindow : Window
         InitializeComponent();
         _hub = hub;
         _hub.Changed += OnHubChanged;
-        Closed += (_, _) => _hub.Changed -= OnHubChanged;
+        Closed += (_, _) =>
+        {
+            _countdown.Stop();
+            _hub.Changed -= OnHubChanged;
+        };
+        _countdown.Tick += (_, _) => UpdateCountdowns();
+        _countdown.Start();
         PreviewKeyDown += async (_, e) =>
         {
             if (e.Key == Key.F5)
@@ -78,10 +94,16 @@ public partial class MainWindow : Window
             ApplyLayout(e.NewSize.Width switch
             {
                 < CompactLayoutBelow => LayoutMode.Compact,
+                >= ExtraWideLayoutFrom => LayoutMode.ExtraWide,
                 >= WideLayoutFrom => LayoutMode.Wide,
                 _ => LayoutMode.Normal
             });
             ApplyTopBarLayout(e.NewSize.Width < TopBarTwoRowsBelow);
+
+            // The label hides (and with it Alt+R), but F5 still refreshes and the tooltip names the button.
+            var iconOnly = e.NewSize.Width < RefreshIconOnlyBelow;
+            RefreshLabel.Visibility = iconOnly ? Visibility.Collapsed : Visibility.Visible;
+            RefreshGlyph.Margin = iconOnly ? new Thickness(0) : new Thickness(0, 0, 8, 0);
         };
 
         // The scroll bar appears and disappears as content grows or the window resizes; keep the edges even.
@@ -153,9 +175,9 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Arranges the sections for the available width. Compact keeps one column with two totals per row and
-    /// shorter charts; Normal is one column; Wide puts the live limits beside the totals, the two charts side
-    /// by side, uses taller charts, and shows the tables in three columns.
+    /// Arranges the sections for the available width. Compact (phone-like) keeps one column with two totals per
+    /// row and shorter charts; Normal is one column; Wide puts the sections in two columns with taller charts;
+    /// ExtraWide uses three columns. Wide and ExtraWide show the tables side by side.
     /// </summary>
     private void ApplyLayout(LayoutMode layout)
     {
@@ -165,54 +187,73 @@ public partial class MainWindow : Window
         }
 
         _layout = layout;
-        var wide = layout == LayoutMode.Wide;
         var compact = layout == LayoutMode.Compact;
-        if (wide)
-        {
-            Place(LiveCard, 0, 0);
-            Place(TotalsGrid, 0, 1);
-            Place(DailyCard, 1, 0);
-            Place(HourCard, 1, 1);
-            Place(ModelCard, 2, 0);
-            Place(MixCard, 2, 1);
-            Place(AccountCard, 3, 0, span: 2);
-            Place(TablesCard, 4, 0, span: 2);
-            Place(FooterText, 5, 0, span: 2);
-        }
-        else
-        {
-            Place(LiveCard, 0, 0, span: 2);
-            Place(TotalsGrid, 1, 0, span: 2);
-            Place(DailyCard, 2, 0, span: 2);
+        var big = layout is LayoutMode.Wide or LayoutMode.ExtraWide;
+        const int full = 3; // Spans every column; the third has zero width outside ExtraWide.
+        ThirdColumn.Width = layout == LayoutMode.ExtraWide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
 
-            // Side by side the model names and legend would be squeezed on small screens, so they stack.
-            Place(ModelCard, 3, 0, span: compact ? 2 : 1);
-            Place(MixCard, compact ? 4 : 3, compact ? 0 : 1, span: compact ? 2 : 1);
-            Place(HourCard, 5, 0, span: 2);
-            Place(AccountCard, 6, 0, span: 2);
-            Place(TablesCard, 7, 0, span: 2);
-            Place(FooterText, 8, 0, span: 2);
+        switch (layout)
+        {
+            case LayoutMode.ExtraWide:
+                Place(LiveCard, 0, 0);
+                Place(TotalsGrid, 0, 1);
+                Place(ModelCard, 0, 2);
+                Place(DailyCard, 1, 0);
+                Place(HourCard, 1, 1);
+                Place(MixCard, 1, 2);
+                Place(AccountCard, 2, 0, span: full);
+                Place(TablesCard, 3, 0, span: full);
+                Place(FooterText, 4, 0, span: full);
+                break;
+
+            case LayoutMode.Wide:
+                Place(LiveCard, 0, 0);
+                Place(TotalsGrid, 0, 1);
+                Place(DailyCard, 1, 0);
+                Place(HourCard, 1, 1);
+                Place(ModelCard, 2, 0);
+                Place(MixCard, 2, 1);
+                Place(AccountCard, 3, 0, span: full);
+                Place(TablesCard, 4, 0, span: full);
+                Place(FooterText, 5, 0, span: full);
+                break;
+
+            default:
+                Place(LiveCard, 0, 0, span: full);
+                Place(TotalsGrid, 1, 0, span: full);
+                Place(DailyCard, 2, 0, span: full);
+
+                // Side by side the model names and legend would be squeezed on small screens, so they stack.
+                Place(ModelCard, 3, 0, span: compact ? full : 1);
+                Place(MixCard, compact ? 4 : 3, compact ? 0 : 1, span: compact ? full : 1);
+                Place(HourCard, 5, 0, span: full);
+                Place(AccountCard, 6, 0, span: full);
+                Place(TablesCard, 7, 0, span: full);
+                Place(FooterText, 8, 0, span: full);
+                break;
         }
 
         // Beside the live card, the four totals form a 2 x 2 block as tall as that card,
         // so the numbers get larger and sit in the middle of each card. Small screens also use 2 x 2.
         TotalsGrid.Columns = layout == LayoutMode.Normal ? 4 : 2;
-        foreach (var big in new[] { TodayTokensText, WeekTokensText, MonthTokensText, AllTokensText })
+        foreach (var number in new[] { TodayTokensText, WeekTokensText, MonthTokensText, AllTokensText })
         {
-            big.FontSize = wide ? 36 : 24;
-            ((FrameworkElement)big.Parent).VerticalAlignment = wide ? VerticalAlignment.Center : VerticalAlignment.Top;
+            number.FontSize = big ? 36 : 24;
+            ((FrameworkElement)number.Parent).VerticalAlignment = big ? VerticalAlignment.Center : VerticalAlignment.Top;
         }
 
-        DailyChart.Height = layout switch { LayoutMode.Wide => 240, LayoutMode.Compact => 150, _ => 190 };
-        HourChart.Height = layout switch { LayoutMode.Wide => 240, LayoutMode.Compact => 120, _ => 150 };
-        AccountGrid.Columns = layout switch { LayoutMode.Wide => 3, LayoutMode.Compact => 1, _ => 2 };
+        DockPanel.SetDock(DailyChartHeading, compact ? Dock.Top : Dock.Left);
+        DailyChartNote.TextAlignment = compact ? TextAlignment.Left : TextAlignment.Right;
+        DailyChart.Height = big ? 240 : compact ? 150 : 190;
+        HourChart.Height = big ? 240 : compact ? 120 : 150;
+        AccountGrid.Columns = layout switch { LayoutMode.ExtraWide => 4, LayoutMode.Wide => 3, LayoutMode.Compact => 1, _ => 2 };
         UpdateEdgeSpacing();
 
         var tables = new[] { DailyTable, ModelTable, ProjectTable };
         for (var i = 0; i < tables.Length; i++)
         {
-            Place(tables[i], wide ? 0 : i, wide ? i : 0, span: wide ? 1 : 3);
-            tables[i].Margin = wide && i < tables.Length - 1 ? new Thickness(0, 0, 16, 0) : new Thickness(0);
+            Place(tables[i], big ? 0 : i, big ? i : 0, span: big ? 1 : 3);
+            tables[i].Margin = big && i < tables.Length - 1 ? new Thickness(0, 0, 16, 0) : new Thickness(0);
         }
 
         // Axis label density follows the chart width.
@@ -412,6 +453,7 @@ public partial class MainWindow : Window
             var now = DateTimeOffset.Now;
             LimitsList.ItemsSource = live.Limits.Select(l => UsageFormatting.ToLimitRow(l, now)).ToList();
             UpdateLimitTileWidth();
+            UpdateCountdowns();
             LiveExtraText.Text = UsageFormatting.DescribeExtras(live);
             LiveExtraText.Visibility = LiveExtraText.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
             LiveLegendText.Visibility = Visibility.Visible;
@@ -421,6 +463,7 @@ public partial class MainWindow : Window
             LimitsList.ItemsSource = null;
             LiveExtraText.Visibility = Visibility.Collapsed;
             LiveLegendText.Visibility = Visibility.Collapsed;
+            AvailabilityText.Visibility = Visibility.Collapsed;
         }
 
         LiveStatusText.Text = result.Status switch
@@ -434,6 +477,32 @@ public partial class MainWindow : Window
                  (_hub.LastGoodLive is { } last ? $" Showing claude.ai data fetched at {last.FetchedAt:HH:mm:ss}." : "") +
                  (_hub.NextRefresh is { } next ? $" Trying again at {next:HH:mm:ss}." : "")
         };
+    }
+
+    /// <summary>
+    /// Ticks the countdown in each limit tile and the "tokens available again" line. Runs every second.
+    /// </summary>
+    private void UpdateCountdowns()
+    {
+        var now = DateTimeOffset.Now;
+        if (LimitsList.ItemsSource is IEnumerable<LimitRow> rows)
+        {
+            foreach (var row in rows)
+            {
+                row.Reset.Update(now);
+            }
+        }
+
+        if (_hub.LastGoodLive is { } live && UsageFormatting.DescribeAvailability(live.Limits, now) is { } availability)
+        {
+            AvailabilityText.Text = availability.Text;
+            AvailabilityText.Foreground = availability.Blocked ? Palette.CriticalText : (Brush)FindResource("TextBrush");
+            AvailabilityText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            AvailabilityText.Visibility = Visibility.Collapsed;
+        }
     }
 
     // ---------------------------------------------------------------- Account and local stats
@@ -510,13 +579,14 @@ public partial class MainWindow : Window
     {
         var compact = _layout == LayoutMode.Compact;
         DailyChart.ItemsSource = UsageFormatting.DailyColumns(s.ByDay, withLabels: true,
-            labelEvery: compact ? 2 : 1, dayFormat: compact ? "%d" : "ddd d");
+            labelEvery: compact ? 2 : 1, dayFormat: compact ? "%d" : "ddd d",
+            todayLabel: compact ? null : "Today"); // Today keeps its lighter bar color either way.
     }
 
     /// <summary>Builds the hour-of-day chart, labelling every hour on wide screens, every sixth on small ones.</summary>
     private void ShowHourChart(UsageSummary s)
     {
-        var labelEvery = _layout switch { LayoutMode.Wide => 1, LayoutMode.Compact => 6, _ => 3 };
+        var labelEvery = _layout switch { LayoutMode.Wide or LayoutMode.ExtraWide => 1, LayoutMode.Compact => 6, _ => 3 };
         HourChart.ItemsSource = UsageFormatting.Columns(s.ByHour.Select((h, hour) => (
             Label: hour % labelEvery == 0 ? hour.ToString("00", CultureInfo.InvariantCulture) : "",
             Value: (double)h.TotalTokens,

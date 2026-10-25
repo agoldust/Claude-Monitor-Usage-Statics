@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:c="clr-namespace:ClaudeUsageMonitor.Controls"
         Title="Claude Usage Monitor"
-        Width="1100" Height="860" MinWidth="480" MinHeight="400" WindowStartupLocation="CenterScreen"
+        Width="1100" Height="860" MinWidth="360" MinHeight="400" WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="CanResize"
         Icon="pack://application:,,,/Assets/app.ico"
         Foreground="{StaticResource TextBrush}" FontFamily="Segoe UI">
@@ -85,8 +85,8 @@
                 <Button x:Name="RefreshButton" Padding="12,6" Click="RefreshButton_Click" ToolTip="Refresh now (F5)"
                         AutomationProperties.Name="Refresh">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource ButtonGlyph}" Text="&#xE72C;" />
-                        <AccessText Text="_Refresh" VerticalAlignment="Center" />
+                        <TextBlock x:Name="RefreshGlyph" Style="{StaticResource ButtonGlyph}" Text="&#xE72C;" />
+                        <AccessText x:Name="RefreshLabel" Text="_Refresh" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
             </StackPanel>
@@ -114,10 +114,12 @@
                  MaxWidth keeps lines readable on very large monitors; the grid is centered past it.
                  Every card has a 12 px right margin as the gap to its neighbour; the -12 right margin moves the last
                  card's gap out of view, so the left and right edges have the same spacing. -->
-            <Grid x:Name="DashboardGrid" MaxWidth="2400" Margin="0,0,-12,0">
+            <Grid x:Name="DashboardGrid" MaxWidth="3600" Margin="0,0,-12,0">
+                <!-- The third column is used only in the extra-wide layout; ApplyLayout sets its width to 0 otherwise. -->
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition x:Name="ThirdColumn" Width="0" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -138,6 +140,9 @@
                         <TextBlock Text="Live plan limits" Style="{StaticResource HeadingStyle}" Margin="0,0,0,2" />
                         <TextBlock x:Name="LiveStatusText" Style="{StaticResource LabelStyle}" TextWrapping="Wrap"
                                    Margin="0,0,0,10" Text="Checking claude.ai..." />
+                        <!-- Ticking countdown to when tokens are available again; red while a limit is used up. -->
+                        <TextBlock x:Name="AvailabilityText" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"
+                                   Margin="0,0,0,10" Visibility="Collapsed" />
 
                         <!-- Same trick as DashboardGrid: -12 hides the last tile's right gap. -->
                         <ItemsControl x:Name="LimitsList" AutomationProperties.Name="Live plan limits" Margin="0,0,-12,0">
@@ -161,7 +166,7 @@
                                                              AutomationProperties.Name="{Binding UsageText}" />
                                                 <StackPanel VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding UsageText}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                                    <TextBlock Text="{Binding ResetText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                    <TextBlock Text="{Binding Reset.Text}" TextWrapping="Wrap" Margin="0,4,0,0" />
                                                     <TextBlock Text="{Binding PaceText}" Style="{StaticResource LabelStyle}"
                                                                TextWrapping="Wrap" Margin="0,6,0,0" />
                                                     <TextBlock Text="{Binding Detail}" Style="{StaticResource LabelStyle}"
@@ -216,7 +221,8 @@
                 <Border x:Name="DailyCard" Style="{StaticResource CardStyle}">
                     <StackPanel>
                         <DockPanel>
-                            <TextBlock Text="Tokens per day, last 14 days" Style="{StaticResource HeadingStyle}" />
+                            <!-- On small screens the note goes under the heading (ApplyLayout docks the heading to the top). -->
+                            <TextBlock x:Name="DailyChartHeading" Text="Tokens per day, last 14 days" Style="{StaticResource HeadingStyle}" />
                             <TextBlock x:Name="DailyChartNote" Style="{StaticResource LabelStyle}" TextAlignment="Right"
                                        VerticalAlignment="Center" Margin="0,0,0,8" />
                         </DockPanel>

@@ -19,8 +19,7 @@ public sealed record ProjectRow(string ProjectFolder, int SessionCount, long Tok
 /// <param name="ElapsedPercent">Time elapsed in the window from 0 to 100, for the inner ring; NaN hides it.</param>
 /// <param name="RingBrush">The outer ring color, which reflects how close the limit is.</param>
 /// <param name="UsageText">Used and remaining percent.</param>
-/// <param name="ResetText">When the limit resets.</param>
-/// <param name="ResetShort">A short reset countdown for the widget.</param>
+/// <param name="Reset">The live countdown to the reset, updated every second by the window that shows it.</param>
 /// <param name="PaceText">Elapsed time, pace and projection, or empty.</param>
 /// <param name="Detail">Severity, dollars and lock reason, or empty.</param>
 public sealed record LimitRow(
@@ -30,8 +29,7 @@ public sealed record LimitRow(
     double ElapsedPercent,
     Brush RingBrush,
     string UsageText,
-    string ResetText,
-    string ResetShort,
+    ResetCountdown Reset,
     string PaceText,
     string Detail);
 

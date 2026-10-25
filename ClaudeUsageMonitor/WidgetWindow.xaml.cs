@@ -19,8 +19,11 @@ public partial class WidgetWindow : Window
     private readonly MonitorHub _hub;
     private readonly AppSettings _settings;
 
-    // Redraws reset countdowns between data refreshes.
+    // Redraws the gauges between data refreshes, so the inner (elapsed time) ring keeps moving.
     private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(30) };
+
+    // Ticks the reset countdowns every second without rebuilding the gauges.
+    private readonly DispatcherTimer _countdown = new() { Interval = TimeSpan.FromSeconds(1) };
 
     /// <summary>Creates the widget and draws whatever the hub already has.</summary>
     /// <param name="hub">The shared data source.</param>
@@ -34,12 +37,15 @@ public partial class WidgetWindow : Window
         _hub.Changed += OnHubChanged;
         _clock.Tick += (_, _) => Render();
         _clock.Start();
+        _countdown.Tick += (_, _) => UpdateCountdowns();
+        _countdown.Start();
 
         SourceInitialized += (_, _) => ApplySettings();
         Loaded += (_, _) => PlaceOnScreen();
         Closed += (_, _) =>
         {
             _clock.Stop();
+            _countdown.Stop();
             _hub.Changed -= OnHubChanged;
             RememberPosition();
         };
@@ -87,6 +93,8 @@ public partial class WidgetWindow : Window
             GaugeList.Visibility = Visibility.Collapsed;
         }
 
+        UpdateCountdowns();
+
         var result = _hub.LiveResult;
         LiveText.Text = result?.Status switch
         {
@@ -111,6 +119,33 @@ public partial class WidgetWindow : Window
             : _hub.LastUpdated is { } updated
                 ? $"Updated {updated:HH:mm} · every {every} · right-click for options"
                 : "Loading...";
+    }
+
+    /// <summary>
+    /// Ticks the countdown under each gauge, and shows when tokens are available again while a limit is used up.
+    /// The rings already show the next resets, so the line stays hidden otherwise to keep the widget small.
+    /// </summary>
+    private void UpdateCountdowns()
+    {
+        var now = DateTimeOffset.Now;
+        if (GaugeList.ItemsSource is IEnumerable<LimitRow> rows)
+        {
+            foreach (var row in rows)
+            {
+                row.Reset.Update(now);
+            }
+        }
+
+        if (_hub.LastGoodLive is { } live && UsageFormatting.DescribeAvailability(live.Limits, now) is { Blocked: true } availability)
+        {
+            BlockedText.Text = availability.Text;
+            BlockedText.Foreground = Palette.CriticalText;
+            BlockedText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            BlockedText.Visibility = Visibility.Collapsed;
+        }
     }
 
     /// <summary>Restores the saved position if it is still on a screen; otherwise uses the top-right corner.</summary>

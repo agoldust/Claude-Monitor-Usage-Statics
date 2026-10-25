@@ -53,7 +53,7 @@ flowchart TB
     end
 
     subgraph services["Services"]
-        Hub["MonitorHub<br/>one timer, shared data,<br/>Changed event"]
+        Hub["MonitorHub<br/>refresh timer, reset timer,<br/>shared data, Changed event"]
         LogReader["ClaudeLogReader<br/>dedupe by message + request ID"]
         AccReader["AccountReader"]
         Agg["UsageAggregator<br/>+ PricingTable"]
@@ -108,12 +108,12 @@ flowchart TB
 
 ## 3. Refresh cycle
 
-One refresh feeds every open window. It runs on the timer (30 s to 1 h, default 1 min), on F5, or from a Refresh button.
+One refresh feeds every open window. It runs on the timer (30 s to 1 h, default 1 min), on a reset timer 5 s after a limit resets (when that comes first), on F5, or from a Refresh button.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant T as Timer / F5 / button
+    participant T as Timer / reset timer / F5 / button
     participant H as MonitorHub
     participant R as ClaudeLogReader + AccountReader
     participant A as UsageAggregator

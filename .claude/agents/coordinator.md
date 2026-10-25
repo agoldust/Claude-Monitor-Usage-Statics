@@ -29,7 +29,7 @@ comment-writer (doc comments only) and docs-git-manager (docs and local commits)
    Apply every real finding. Skip a finding only with a reason you give the user.
 4. **See it.** For UI changes, build Release and launch
    `ClaudeUsageMonitor\bin\Release\net8.0-windows10.0.17763.0\ClaudeUsageMonitor.exe`, then capture the window with
-   PrintWindow (flag 2) at the widths that matter: 480, 900, 1100 and maximized. Look at the screenshots before you
+   PrintWindow (flag 2) at the widths that matter: 360 (minimum), 900, 1100, 1600, 2400 and maximized. Look at the screenshots before you
    say a layout works.
 5. **Report.** Give the user one short summary: what changed, what the checkers found, what you fixed or skipped,
    and anything not yet verified.

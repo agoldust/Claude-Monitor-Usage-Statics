@@ -64,8 +64,7 @@ public static class UsageFormatting
             elapsed ?? double.NaN,
             ring,
             $"{limit.Percent:0}% used · {100 - limit.Percent:0}% left",
-            FormatReset(limit.ResetsAt, now),
-            FormatResetShort(limit.ResetsAt, now),
+            new ResetCountdown(limit.ResetsAt, now),
             pace,
             string.Join(" · ", details));
     }
@@ -99,7 +98,7 @@ public static class UsageFormatting
     }
 
     /// <summary>
-    /// Describes when a limit resets, such as "Resets in 2h 37m, at 16:40" or "Resets in 5d 3h, Thu 20:00".
+    /// Describes when a limit resets, such as "Resets in 2h 37m 05s, at 16:40" or "Resets in 5d 3h 20m, Thu 20:00".
     /// </summary>
     public static string FormatReset(DateTimeOffset? resetsAt, DateTimeOffset now)
     {
@@ -116,11 +115,11 @@ public static class UsageFormatting
         }
 
         return left.TotalDays >= 1
-            ? $"Resets in {(int)left.TotalDays}d {left.Hours}h, {local.ToString("ddd HH:mm", CultureInfo.CurrentCulture)}"
-            : $"Resets in {(int)left.TotalHours}h {left.Minutes}m, at {local.ToString("HH:mm", CultureInfo.CurrentCulture)}";
+            ? $"Resets in {FormatCountdown(left)}, {local.ToString("ddd HH:mm", CultureInfo.CurrentCulture)}"
+            : $"Resets in {FormatCountdown(left)}, at {local.ToString("HH:mm", CultureInfo.CurrentCulture)}";
     }
 
-    /// <summary>A short reset countdown for the widget, such as "resets 3h 41m" or "resets 5d 7h".</summary>
+    /// <summary>A short reset countdown for the widget, such as "resets 3h 41m 09s" or "resets 5d 7h 02m".</summary>
     public static string FormatResetShort(DateTimeOffset? resetsAt, DateTimeOffset now)
     {
         if (resetsAt is not { } reset)
@@ -129,14 +128,59 @@ public static class UsageFormatting
         }
 
         var left = reset - now;
-        if (left <= TimeSpan.Zero)
+        return left <= TimeSpan.Zero ? "resetting now" : $"resets {FormatCountdown(left)}";
+    }
+
+    /// <summary>
+    /// Formats time left as a ticking countdown: "4d 11h 03m" past a day, "2h 32m 15s" past an hour, else "7m 05s".
+    /// </summary>
+    public static string FormatCountdown(TimeSpan left)
+    {
+        if (left < TimeSpan.Zero)
         {
-            return "resetting now";
+            left = TimeSpan.Zero;
         }
 
-        return left.TotalDays >= 1
-            ? $"resets {(int)left.TotalDays}d {left.Hours}h"
-            : $"resets {(int)left.TotalHours}h {left.Minutes}m";
+        return left.TotalDays >= 1 ? $"{(int)left.TotalDays}d {left.Hours}h {left.Minutes:00}m"
+            : left.TotalHours >= 1 ? $"{(int)left.TotalHours}h {left.Minutes:00}m {left.Seconds:00}s"
+            : $"{left.Minutes}m {left.Seconds:00}s";
+    }
+
+    /// <summary>
+    /// Says when tokens are available again. When a limit is used up, this is when the last used-up limit resets,
+    /// because every one of them blocks use until then. Otherwise it names the next limit to reset.
+    /// </summary>
+    /// <param name="limits">The live limits.</param>
+    /// <param name="now">The current time.</param>
+    /// <returns>The text and whether use is blocked now, or null when there are no limits.</returns>
+    public static (string Text, bool Blocked)? DescribeAvailability(IReadOnlyList<LimitUsage> limits, DateTimeOffset now)
+    {
+        if (limits.Count == 0)
+        {
+            return null;
+        }
+
+        // Rounded like the tiles, so a tile that shows "100% used" always gets the red line too.
+        var usedUp = limits.Where(l => Math.Round(l.Percent) >= 100).ToList();
+        if (usedUp.Count > 0)
+        {
+            if (usedUp.Any(l => l.ResetsAt is null))
+            {
+                return ("Limit reached. claude.ai did not say when it resets.", true);
+            }
+
+            var until = usedUp.Max(l => l.ResetsAt!.Value);
+            return until <= now
+                ? ("Limit reached · resetting now", true)
+                : ($"Limit reached · tokens available again in {FormatCountdown(until - now)}, " +
+                   $"at {until.ToLocalTime().ToString(until - now >= TimeSpan.FromDays(1) ? "ddd HH:mm" : "HH:mm", CultureInfo.CurrentCulture)}",
+                   true);
+        }
+
+        var next = limits.Where(l => l.ResetsAt > now).MinBy(l => l.ResetsAt);
+        return next is null
+            ? null
+            : ($"Next reset: {next.Label} in {FormatCountdown(next.ResetsAt!.Value - now)}", false);
     }
 
     /// <summary>Shortens a limit name for the widget, such as "Current session (5-hour)" to "Session".</summary>
@@ -171,9 +215,10 @@ public static class UsageFormatting
     /// <param name="days">The daily totals, oldest first.</param>
     /// <param name="withLabels">False to leave the axis labels empty, for small charts.</param>
     /// <param name="labelEvery">Label every Nth day only, for narrow charts where the labels would overlap.</param>
-    /// <param name="dayFormat">The label format for days other than today; "%d" (day number only) suits narrow charts.</param>
+    /// <param name="dayFormat">The label format; "%d" (day number only) suits narrow charts.</param>
+    /// <param name="todayLabel">The label for today, or null to use <paramref name="dayFormat"/>, for bars too narrow for "Today".</param>
     public static List<ColumnBar> DailyColumns(IReadOnlyList<DailyUsage> days, bool withLabels, int labelEvery = 1,
-        string dayFormat = "ddd d")
+        string dayFormat = "ddd d", string? todayLabel = "Today")
     {
         var today = DateTime.Today;
 
@@ -181,7 +226,7 @@ public static class UsageFormatting
         bool Labelled(int index) => withLabels && (days.Count - 1 - index) % Math.Max(labelEvery, 1) == 0;
 
         return Columns(days.Select((d, i) => (
-            Label: !Labelled(i) ? "" : d.Day == today ? "Today" : d.Day.ToString(dayFormat, CultureInfo.CurrentCulture),
+            Label: !Labelled(i) ? "" : d.Day == today && todayLabel is not null ? todayLabel : d.Day.ToString(dayFormat, CultureInfo.CurrentCulture),
             Value: (double)d.Totals.TotalTokens,
             Tooltip: $"{d.Day.ToString("dddd d MMMM", CultureInfo.CurrentCulture)}\n" +
                      $"{d.Totals.TotalTokens:N0} tokens · {d.Totals.Requests:N0} requests\n" +

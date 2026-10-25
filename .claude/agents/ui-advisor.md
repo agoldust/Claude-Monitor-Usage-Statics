@@ -25,7 +25,7 @@ An account card (email, name, plan, billing, organization, and so on), four toke
 3. **Hierarchy.** Are the most important numbers the biggest and first?
 4. **Density.** Too many raw numbers for a casual user? Suggest what to hide, collapse, or move to a details view.
 5. **Empty and error states.** What does the user see when there are no logs, or the files are locked?
-6. **Accessibility.** Contrast, font size, color-only meaning, keyboard use, and behavior at a small window size (the minimum is 760 by 560).
+6. **Accessibility.** Contrast, font size, color-only meaning, keyboard use, and behavior at a small window size (the minimum is 360 by 400).
 7. **Refresh.** Is it clear when data was last updated and how to refresh?
 
 ## Report (under 400 words)
