@@ -16,7 +16,36 @@ namespace ClaudeUsageMonitor;
 /// </summary>
 public partial class MainWindow : Window
 {
+    // Window widths (device-independent pixels) where the dashboard switches layout. They use the window width,
+    // not the content width, because each layout changes the margins, which would change the content width again.
+    private const double CompactLayoutBelow = 860;
+    private const double WideLayoutFrom = 1540;
+
+    // Width of the custom scroll bar in App.xaml. Its space counts toward the right-hand spacing.
+    private const double ScrollBarWidth = 10;
+
+    // Live limit tiles are at least this wide; the rest of the row is shared out so the tiles fill it.
+    private const double MinLimitTileWidth = 300;
+
+    // Below this window width the top-bar actions move to a second row under the title.
+    private const double TopBarTwoRowsBelow = 1000;
+
     private readonly MonitorHub _hub;
+    private LayoutMode? _layout;
+    private bool? _topBarTwoRows;
+
+    /// <summary>How the dashboard sections are arranged for the available width.</summary>
+    private enum LayoutMode
+    {
+        /// <summary>Small screens: one column, two totals per row, shorter charts, fewer axis labels.</summary>
+        Compact,
+
+        /// <summary>One column with the model share and token mix side by side.</summary>
+        Normal,
+
+        /// <summary>Large screens: two columns of sections and taller charts.</summary>
+        Wide
+    }
 
     /// <summary>
     /// Creates the dashboard and draws whatever the hub already has.
@@ -36,14 +65,189 @@ public partial class MainWindow : Window
                 await _hub.RefreshAsync();
             }
         };
-        Activated += (_, _) => WidgetButtonText.Text = App.Current.IsWidgetOpen ? "Hide widget" : "Show widget";
+        Activated += (_, _) => UpdateWidgetButton();
         SourceInitialized += (_, _) =>
         {
             ApplyGlass();
             MaximizeFix.Attach(this);
         };
         StateChanged += (_, _) => OnStateChanged();
+        FitToWorkArea();
+        SizeChanged += (_, e) =>
+        {
+            ApplyLayout(e.NewSize.Width switch
+            {
+                < CompactLayoutBelow => LayoutMode.Compact,
+                >= WideLayoutFrom => LayoutMode.Wide,
+                _ => LayoutMode.Normal
+            });
+            ApplyTopBarLayout(e.NewSize.Width < TopBarTwoRowsBelow);
+        };
+
+        // The scroll bar appears and disappears as content grows or the window resizes; keep the edges even.
+        MainScroll.ScrollChanged += (_, e) =>
+        {
+            if (e.ExtentHeightChange != 0 || e.ViewportHeightChange != 0)
+            {
+                UpdateEdgeSpacing();
+            }
+        };
+        LimitsList.SizeChanged += (_, e) =>
+        {
+            if (e.WidthChanged)
+            {
+                UpdateLimitTileWidth();
+            }
+        };
+        ApplyLayout(LayoutMode.Normal);
+        ApplyTopBarLayout(Width < TopBarTwoRowsBelow);
         Render();
+    }
+
+    /// <summary>
+    /// Shrinks the default size on small screens, such as a 1366 x 768 laptop at 150% scaling,
+    /// so the whole window, including its title bar buttons, starts on screen.
+    /// </summary>
+    private void FitToWorkArea()
+    {
+        var area = SystemParameters.WorkArea;
+        Width = Math.Max(MinWidth, Math.Min(Width, area.Width * 0.95));
+        Height = Math.Max(MinHeight, Math.Min(Height, area.Height * 0.95));
+    }
+
+    /// <summary>
+    /// On narrow windows, moves the actions to a second row under the title, hides the logo and the
+    /// "Last refresh" text (it moves into the Refresh tooltip), and shows Sign in as an icon only.
+    /// </summary>
+    private void ApplyTopBarLayout(bool twoRows)
+    {
+        if (_topBarTwoRows == twoRows)
+        {
+            return;
+        }
+
+        _topBarTwoRows = twoRows;
+        DockPanel.SetDock(ActionBar, twoRows ? Dock.Bottom : Dock.Right);
+        ActionBar.HorizontalAlignment = twoRows ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
+        AppLogo.Visibility = twoRows ? Visibility.Collapsed : Visibility.Visible;
+        TitleText.FontSize = twoRows ? 18 : 22;
+        LastRefreshText.Visibility = twoRows ? Visibility.Collapsed : Visibility.Visible;
+        SignInButtonText.Visibility = twoRows ? Visibility.Collapsed : Visibility.Visible;
+        SignInGlyph.Margin = twoRows ? new Thickness(0) : new Thickness(0, 0, 8, 0);
+        UpdateEdgeSpacing();
+    }
+
+    /// <summary>
+    /// Gives the window the same spacing on the left and the right. The right side includes the scroll bar
+    /// when it shows, so the outer margin there is smaller by the scroll bar's width. The top bar adds the
+    /// difference back, so the window buttons keep the same gap to the edge as the content on the left.
+    /// </summary>
+    private void UpdateEdgeSpacing()
+    {
+        var side = _layout == LayoutMode.Compact ? 10.0 : 16.0;
+        var scrollBar = MainScroll.ComputedVerticalScrollBarVisibility == Visibility.Visible ? ScrollBarWidth : 0;
+        var right = Math.Max(0, side - scrollBar);
+
+        Shell.Margin = new Thickness(side, _layout == LayoutMode.Compact ? 8 : 10, right, side);
+        TopBar.Margin = new Thickness(0, 0, side - right, _topBarTwoRows == true ? 10 : 16);
+    }
+
+    /// <summary>
+    /// Arranges the sections for the available width. Compact keeps one column with two totals per row and
+    /// shorter charts; Normal is one column; Wide puts the live limits beside the totals, the two charts side
+    /// by side, uses taller charts, and shows the tables in three columns.
+    /// </summary>
+    private void ApplyLayout(LayoutMode layout)
+    {
+        if (_layout == layout)
+        {
+            return;
+        }
+
+        _layout = layout;
+        var wide = layout == LayoutMode.Wide;
+        var compact = layout == LayoutMode.Compact;
+        if (wide)
+        {
+            Place(LiveCard, 0, 0);
+            Place(TotalsGrid, 0, 1);
+            Place(DailyCard, 1, 0);
+            Place(HourCard, 1, 1);
+            Place(ModelCard, 2, 0);
+            Place(MixCard, 2, 1);
+            Place(AccountCard, 3, 0, span: 2);
+            Place(TablesCard, 4, 0, span: 2);
+            Place(FooterText, 5, 0, span: 2);
+        }
+        else
+        {
+            Place(LiveCard, 0, 0, span: 2);
+            Place(TotalsGrid, 1, 0, span: 2);
+            Place(DailyCard, 2, 0, span: 2);
+
+            // Side by side the model names and legend would be squeezed on small screens, so they stack.
+            Place(ModelCard, 3, 0, span: compact ? 2 : 1);
+            Place(MixCard, compact ? 4 : 3, compact ? 0 : 1, span: compact ? 2 : 1);
+            Place(HourCard, 5, 0, span: 2);
+            Place(AccountCard, 6, 0, span: 2);
+            Place(TablesCard, 7, 0, span: 2);
+            Place(FooterText, 8, 0, span: 2);
+        }
+
+        // Beside the live card, the four totals form a 2 x 2 block as tall as that card,
+        // so the numbers get larger and sit in the middle of each card. Small screens also use 2 x 2.
+        TotalsGrid.Columns = layout == LayoutMode.Normal ? 4 : 2;
+        foreach (var big in new[] { TodayTokensText, WeekTokensText, MonthTokensText, AllTokensText })
+        {
+            big.FontSize = wide ? 36 : 24;
+            ((FrameworkElement)big.Parent).VerticalAlignment = wide ? VerticalAlignment.Center : VerticalAlignment.Top;
+        }
+
+        DailyChart.Height = layout switch { LayoutMode.Wide => 240, LayoutMode.Compact => 150, _ => 190 };
+        HourChart.Height = layout switch { LayoutMode.Wide => 240, LayoutMode.Compact => 120, _ => 150 };
+        AccountGrid.Columns = layout switch { LayoutMode.Wide => 3, LayoutMode.Compact => 1, _ => 2 };
+        UpdateEdgeSpacing();
+
+        var tables = new[] { DailyTable, ModelTable, ProjectTable };
+        for (var i = 0; i < tables.Length; i++)
+        {
+            Place(tables[i], wide ? 0 : i, wide ? i : 0, span: wide ? 1 : 3);
+            tables[i].Margin = wide && i < tables.Length - 1 ? new Thickness(0, 0, 16, 0) : new Thickness(0);
+        }
+
+        // Axis label density follows the chart width.
+        if (_hub.Summary is { } summary)
+        {
+            ShowDailyChart(summary);
+            ShowHourChart(summary);
+        }
+    }
+
+    /// <summary>
+    /// Sizes the live limit tiles so each row is filled edge to edge: as many tiles per row as fit at
+    /// <see cref="MinLimitTileWidth"/>, but never more columns than there are tiles.
+    /// </summary>
+    private void UpdateLimitTileWidth()
+    {
+        const double gap = 12; // The tile's right margin.
+        var available = LimitsList.ActualWidth;
+        if (available <= 0)
+        {
+            return;
+        }
+
+        var tiles = Math.Max(LimitsList.Items.Count, 1);
+        var columns = (int)Math.Clamp(Math.Floor((available + gap) / (MinLimitTileWidth + gap)), 1, tiles);
+
+        // Floor, so rounding can never push the last tile onto a new row.
+        LimitsList.Tag = Math.Floor(available / columns - gap);
+    }
+
+    private static void Place(UIElement element, int row, int column, int span = 1)
+    {
+        Grid.SetRow(element, row);
+        Grid.SetColumn(element, column);
+        Grid.SetColumnSpan(element, span);
     }
 
     /// <summary>Applies the dashboard opacity and the blur setting, like the widget's glass.</summary>
@@ -89,7 +293,15 @@ public partial class MainWindow : Window
     private void WidgetButton_Click(object sender, RoutedEventArgs e)
     {
         App.Current.ToggleWidget();
-        WidgetButtonText.Text = App.Current.IsWidgetOpen ? "Hide widget" : "Show widget";
+        UpdateWidgetButton();
+    }
+
+    /// <summary>Names the icon-only widget button after what a click will do.</summary>
+    public void UpdateWidgetButton()
+    {
+        var text = App.Current.IsWidgetOpen ? "Hide widget" : "Show widget";
+        WidgetButton.ToolTip = text;
+        AutomationProperties.SetName(WidgetButton, text);
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
@@ -121,7 +333,11 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            LiveStatusText.Text = $"Sign-in failed: {ex.Message}";
+            // Type only in the log; the message can contain arbitrary text.
+            DebugLog.Write($"Sign-in failed: {ex.GetType().Name}");
+            LiveStatusText.Text = _hub.SignedIn
+                ? "Sign-out did not finish. Try again in a moment."
+                : "Sign-in did not finish. Check the internet connection and try again.";
         }
         finally
         {
@@ -133,22 +349,35 @@ public partial class MainWindow : Window
     private void Render()
     {
         RefreshButton.IsEnabled = !_hub.IsLoading;
+
+        // The widget can also be opened or closed from the tray or its own menu while this window stays active.
+        UpdateWidgetButton();
         SignInButtonText.Text = _hub.SignedIn ? "Sign out" : "Sign in";
 
+        LastRefreshText.Text = _hub.IsLoading
+            ? "Refreshing..."
+            : _hub.LastUpdated is { } updated ? $"Last refresh {updated:HH:mm:ss}" : "";
+
+        // On narrow windows the text above is hidden, so the tooltip carries it too.
+        RefreshButton.ToolTip = LastRefreshText.Text.Length == 0 ? "Refresh now (F5)" : $"Refresh now (F5)\n{LastRefreshText.Text}";
+
+        var every = _hub.Interval.TotalMinutes >= 1 ? $"{_hub.Interval.TotalMinutes:0.#} min" : $"{_hub.Interval.TotalSeconds:0} s";
         if (_hub.IsLoading && _hub.LastUpdated is null)
         {
             StatusText.Text = "Loading...";
         }
         else if (_hub.LocalError is { } error)
         {
-            StatusText.Text = $"Could not refresh: {error}";
+            StatusText.Text = $"Local usage not updated. {error}" +
+                              (_hub.NextRefresh is { } next ? $" Trying again at {next:HH:mm:ss}." : "");
         }
-        else if (_hub.LastUpdated is { } updated)
+        else if (!_hub.LogsFound)
         {
-            var every = _hub.Interval.TotalMinutes >= 1 ? $"{_hub.Interval.TotalMinutes:0.#} min" : $"{_hub.Interval.TotalSeconds:0} s";
-            StatusText.Text = _hub.LogsFound
-                ? $"Updated {updated:HH:mm:ss} · refreshes every {every} · F5 to refresh now"
-                : $"Updated {updated:HH:mm:ss}. No Claude Code logs found at {ClaudePaths.ClaudeHome}";
+            StatusText.Text = $"No Claude Code logs found in {ClaudePaths.ClaudeHome}. Use Claude Code once, then press Refresh.";
+        }
+        else if (_hub.LastUpdated is not null)
+        {
+            StatusText.Text = $"Local logs · refreshes every {every} · F5 to refresh now";
         }
 
         if (_hub.Account is { } account)
@@ -182,6 +411,7 @@ public partial class MainWindow : Window
         {
             var now = DateTimeOffset.Now;
             LimitsList.ItemsSource = live.Limits.Select(l => UsageFormatting.ToLimitRow(l, now)).ToList();
+            UpdateLimitTileWidth();
             LiveExtraText.Text = UsageFormatting.DescribeExtras(live);
             LiveExtraText.Visibility = LiveExtraText.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
             LiveLegendText.Visibility = Visibility.Visible;
@@ -197,10 +427,12 @@ public partial class MainWindow : Window
         {
             LiveUsageStatus.Ok when result.Usage is { Limits.Count: 0 } => "Signed in, but claude.ai returned no limits for this plan.",
             LiveUsageStatus.Ok when result.Usage is { } u =>
-                $"Live from claude.ai{(string.IsNullOrWhiteSpace(u.OrganizationName) ? "" : $" · {u.OrganizationName}")} · updated {u.FetchedAt:HH:mm:ss}",
+                $"Live from claude.ai{(string.IsNullOrWhiteSpace(u.OrganizationName) ? "" : $" · {u.OrganizationName}")} · fetched {u.FetchedAt:HH:mm:ss}",
             LiveUsageStatus.SignedOut => "Sign in to see your current session and weekly limits.",
-            _ => $"Could not update live limits: {result.Message}" +
-                 (_hub.LastGoodLive is { } last ? $" Showing data from {last.FetchedAt:HH:mm:ss}." : "")
+            LiveUsageStatus.RuntimeMissing => result.Message ?? "",
+            _ => $"Live limits not updated. {result.Message}" +
+                 (_hub.LastGoodLive is { } last ? $" Showing claude.ai data fetched at {last.FetchedAt:HH:mm:ss}." : "") +
+                 (_hub.NextRefresh is { } next ? $" Trying again at {next:HH:mm:ss}." : "")
         };
     }
 
@@ -241,12 +473,12 @@ public partial class MainWindow : Window
     /// </summary>
     private void ShowSummary(UsageSummary s)
     {
-        SetTotals(s.Today, TodayTokensText, TodayDetailText);
-        SetTotals(s.Last7Days, WeekTokensText, WeekDetailText);
-        SetTotals(s.Last30Days, MonthTokensText, MonthDetailText);
-        SetTotals(s.AllTime, AllTokensText, AllDetailText);
+        SetTotals(s.Today, TodayCard, TodayTokensText, TodayDetailText);
+        SetTotals(s.Last7Days, WeekCard, WeekTokensText, WeekDetailText);
+        SetTotals(s.Last30Days, MonthCard, MonthTokensText, MonthDetailText);
+        SetTotals(s.AllTime, AllCard, AllTokensText, AllDetailText);
 
-        DailyChart.ItemsSource = UsageFormatting.DailyColumns(s.ByDay, withLabels: true);
+        ShowDailyChart(s);
         var busiest = s.ByDay.MaxBy(d => d.Totals.TotalTokens);
         DailyChartNote.Text = busiest is null || busiest.Totals.TotalTokens == 0
             ? "No usage in the last 14 days"
@@ -255,11 +487,7 @@ public partial class MainWindow : Window
         ShowModelShare(s.ByModel);
         ShowTokenMix(s.Last30Days);
 
-        HourChart.ItemsSource = UsageFormatting.Columns(s.ByHour.Select((h, hour) => (
-            Label: hour % 3 == 0 ? hour.ToString("00", CultureInfo.InvariantCulture) : "",
-            Value: (double)h.TotalTokens,
-            Tooltip: $"{hour:00}:00 to {(hour + 1) % 24:00}:00\n{h.TotalTokens:N0} tokens · {h.Requests:N0} requests",
-            Brush: Palette.Sonnet)));
+        ShowHourChart(s);
 
         DailyGrid.ItemsSource = s.ByDay
             .Select(d => new DailyRow(d.Day, d.Totals.Requests, d.Totals.TotalTokens, d.Totals.EstimatedCostUsd))
@@ -272,6 +500,28 @@ public partial class MainWindow : Window
         ProjectGrid.ItemsSource = s.ByProject
             .Select(p => new ProjectRow(p.ProjectFolder, p.SessionCount, p.Totals.TotalTokens, p.Totals.EstimatedCostUsd))
             .ToList();
+    }
+
+    /// <summary>
+    /// Builds the 14-day chart. On small screens the bars are narrow, so every other day is labelled with
+    /// its day number only ("19" instead of "Mon 19").
+    /// </summary>
+    private void ShowDailyChart(UsageSummary s)
+    {
+        var compact = _layout == LayoutMode.Compact;
+        DailyChart.ItemsSource = UsageFormatting.DailyColumns(s.ByDay, withLabels: true,
+            labelEvery: compact ? 2 : 1, dayFormat: compact ? "%d" : "ddd d");
+    }
+
+    /// <summary>Builds the hour-of-day chart, labelling every hour on wide screens, every sixth on small ones.</summary>
+    private void ShowHourChart(UsageSummary s)
+    {
+        var labelEvery = _layout switch { LayoutMode.Wide => 1, LayoutMode.Compact => 6, _ => 3 };
+        HourChart.ItemsSource = UsageFormatting.Columns(s.ByHour.Select((h, hour) => (
+            Label: hour % labelEvery == 0 ? hour.ToString("00", CultureInfo.InvariantCulture) : "",
+            Value: (double)h.TotalTokens,
+            Tooltip: $"{hour:00}:00 to {(hour + 1) % 24:00}:00\n{h.TotalTokens:N0} tokens · {h.Requests:N0} requests",
+            Brush: Palette.Sonnet)));
     }
 
     private void ShowModelShare(IReadOnlyList<ModelUsage> models)
@@ -323,14 +573,17 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Fills one summary card with the total token count and the request, cost and token-type details.
+    /// Fills one summary card: the token count, one line of requests and cost, and the split per token type
+    /// in the card's tooltip, using the same four types as the token mix.
     /// </summary>
-    private static void SetTotals(UsageTotals t, TextBlock big, TextBlock detail)
+    private static void SetTotals(UsageTotals t, Border card, TextBlock big, TextBlock detail)
     {
-        big.Text = UsageFormatting.Compact(t.TotalTokens) + " tokens";
-        detail.Text = $"{t.Requests:N0} requests · Est. cost ${t.EstimatedCostUsd:F2}\n" +
-                      $"In {UsageFormatting.Compact(t.InputTokens)} · out {UsageFormatting.Compact(t.OutputTokens)} · " +
-                      $"cache {UsageFormatting.Compact(t.CacheCreationTokens + t.CacheReadTokens)}";
+        big.Text = UsageFormatting.Compact(t.TotalTokens);
+        detail.Text = $"tokens · {t.Requests:N0} requests · Est. cost ${t.EstimatedCostUsd:F2}";
+        card.ToolTip = $"{t.TotalTokens:N0} tokens\n" +
+                       $"Input: {t.InputTokens:N0}\nOutput: {t.OutputTokens:N0}\n" +
+                       $"Cache write: {t.CacheCreationTokens:N0}\nCache read: {t.CacheReadTokens:N0}";
+        AutomationProperties.SetHelpText(card, card.ToolTip.ToString());
     }
 
     /// <summary>

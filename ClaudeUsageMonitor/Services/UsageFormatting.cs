@@ -170,11 +170,18 @@ public static class UsageFormatting
     /// <summary>Builds the 14-day column bars, with today in a lighter color.</summary>
     /// <param name="days">The daily totals, oldest first.</param>
     /// <param name="withLabels">False to leave the axis labels empty, for small charts.</param>
-    public static List<ColumnBar> DailyColumns(IReadOnlyList<DailyUsage> days, bool withLabels)
+    /// <param name="labelEvery">Label every Nth day only, for narrow charts where the labels would overlap.</param>
+    /// <param name="dayFormat">The label format for days other than today; "%d" (day number only) suits narrow charts.</param>
+    public static List<ColumnBar> DailyColumns(IReadOnlyList<DailyUsage> days, bool withLabels, int labelEvery = 1,
+        string dayFormat = "ddd d")
     {
         var today = DateTime.Today;
-        return Columns(days.Select(d => (
-            Label: !withLabels ? "" : d.Day == today ? "Today" : d.Day.ToString("ddd d", CultureInfo.CurrentCulture),
+
+        // Counted back from the last day, so the newest day (normally "Today") always keeps its label.
+        bool Labelled(int index) => withLabels && (days.Count - 1 - index) % Math.Max(labelEvery, 1) == 0;
+
+        return Columns(days.Select((d, i) => (
+            Label: !Labelled(i) ? "" : d.Day == today ? "Today" : d.Day.ToString(dayFormat, CultureInfo.CurrentCulture),
             Value: (double)d.Totals.TotalTokens,
             Tooltip: $"{d.Day.ToString("dddd d MMMM", CultureInfo.CurrentCulture)}\n" +
                      $"{d.Totals.TotalTokens:N0} tokens · {d.Totals.Requests:N0} requests\n" +

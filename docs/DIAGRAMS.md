@@ -195,7 +195,7 @@ flowchart TD
     wasOpen -- no --> hubStart
     widget --> hubStart["Hub.Start(): first refresh + timer"]
     hubStart --> running(["Running"])
-    running --> closeAll{"Dashboard and widget<br/>both closed, or Exit?"}
+    running --> closeAll{"Exit chosen<br/>(closing windows keeps the tray icon)"}
     closeAll -- yes --> dispose["Dispose hub (hidden browser),<br/>release mutex"] --> quit
 ```
 

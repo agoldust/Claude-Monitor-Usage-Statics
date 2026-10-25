@@ -17,6 +17,7 @@ public partial class App : Application
     private RegisteredWaitHandle? _showWait;
     private MainWindow? _dashboard;
     private WidgetWindow? _widget;
+    private TrayIcon? _tray;
     private bool _exiting;
 
     /// <summary>The running app.</summary>
@@ -48,6 +49,7 @@ public partial class App : Application
 
         Settings = SettingsStore.Load();
         Hub = new MonitorHub(Settings);
+        _tray = new TrayIcon(Hub);
 
         var widgetOnly = e.Args.Any(a => a.Equals(StartupRegistration.WidgetSwitch, StringComparison.OrdinalIgnoreCase));
         if (!widgetOnly)
@@ -115,11 +117,13 @@ public partial class App : Application
                     SaveSettings();
                 }
 
+                _dashboard?.UpdateWidgetButton();
                 ExitIfNoWindows();
             };
             _widget.Show();
             Settings.WidgetVisible = true;
             SaveSettings();
+            _dashboard?.UpdateWidgetButton();
         }
 
         _widget.Activate();
@@ -180,13 +184,16 @@ public partial class App : Application
         _exiting = true;
         _widget?.Close();
         _dashboard?.Close();
+        _tray?.Dispose();
+        _tray = null;
         Hub.Dispose();
         Shutdown();
     }
 
     private void ExitIfNoWindows()
     {
-        if (!_exiting && _dashboard is null && _widget is null)
+        // With the notification-area icon, closing the last window leaves the app running there; Exit is in its menu.
+        if (!_exiting && _dashboard is null && _widget is null && _tray is null)
         {
             ExitApp();
         }
@@ -200,6 +207,9 @@ public partial class App : Application
         {
             Hub?.Dispose();
         }
+
+        // Otherwise a dead icon stays next to the clock until the mouse passes over it.
+        _tray?.Dispose();
 
         _showWait?.Unregister(null);
         _showSignal?.Dispose();

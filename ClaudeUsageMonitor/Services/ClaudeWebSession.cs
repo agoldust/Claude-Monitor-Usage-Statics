@@ -24,10 +24,17 @@ public sealed class ClaudeWebSession : IDisposable
 
     private static readonly TimeSpan NavigationTimeout = TimeSpan.FromSeconds(30);
 
+    // The page aborts its fetch after 20 s; the extra time covers the DevTools round trip.
+    private const int FetchTimeoutMs = 20_000;
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+
     private static Task<CoreWebView2Environment>? _environment;
 
     private CoreWebView2Controller? _controller;
     private Task? _ready;
+
+    // Bumped by every start and by Dispose, so a start that finishes late can tell it has been replaced.
+    private int _generation;
 
     /// <summary>
     /// Returns the WebView2 environment shared by the hidden session and the sign-in window.
@@ -61,11 +68,40 @@ public sealed class ClaudeWebSession : IDisposable
 
     private async Task InitializeCoreAsync(IntPtr parentWindow)
     {
+        var generation = ++_generation;
         _controller?.Close();
+        _controller = null;
         DebugLog.Write("Web session: starting hidden browser");
         var environment = await GetEnvironmentAsync();
         DebugLog.Write($"Web session: WebView2 runtime {environment.BrowserVersionString}");
-        _controller = await environment.CreateCoreWebView2ControllerAsync(parentWindow);
+
+        var creating = environment.CreateCoreWebView2ControllerAsync(parentWindow);
+        CoreWebView2Controller controller;
+        try
+        {
+            controller = await creating.WaitAsync(NavigationTimeout);
+        }
+        catch (TimeoutException)
+        {
+            // The creation keeps running; close the browser it makes later instead of leaking it.
+            _ = creating.ContinueWith(t =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    t.Result.Close();
+                }
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+            throw new TimeoutException("The hidden browser did not start in time. Restart the app if this keeps happening.");
+        }
+
+        if (generation != _generation)
+        {
+            // Disposed or restarted while this start was waiting.
+            controller.Close();
+            throw new InvalidOperationException("The web session was closed.");
+        }
+
+        _controller = controller;
         _controller.IsVisible = false;
 
         var core = _controller.CoreWebView2;
@@ -75,7 +111,14 @@ public sealed class ClaudeWebSession : IDisposable
         // A small same-origin page is enough; the full claude.ai app is not needed.
         // With no connection (for example right after Windows starts) the page is an error page on another origin,
         // so fail here: the start is then retried on the next refresh instead of fetching from the error page.
-        if (!await NavigateAsync(core, new Uri(BaseUri, "robots.txt")))
+        var reached = await NavigateAsync(core, new Uri(BaseUri, "robots.txt"));
+        if (generation != _generation)
+        {
+            // Dispose already closed this controller.
+            throw new InvalidOperationException("The web session was closed.");
+        }
+
+        if (!reached)
         {
             DebugLog.Write("Web session: claude.ai could not be reached");
             throw new InvalidOperationException("claude.ai could not be reached. Check the internet connection.");
@@ -110,7 +153,17 @@ public sealed class ClaudeWebSession : IDisposable
             throw new InvalidOperationException("The web session was closed.");
         }
 
-        return await FetchAsync(_controller.CoreWebView2, path);
+        try
+        {
+            return await FetchAsync(_controller.CoreWebView2, path);
+        }
+        catch (TimeoutException)
+        {
+            // The page may be stuck; close it so the next refresh starts a fresh browser.
+            DebugLog.Write("Web session: request timed out, restarting the hidden browser on the next refresh");
+            Dispose();
+            throw;
+        }
     }
 
     /// <summary>
@@ -121,15 +174,25 @@ public sealed class ClaudeWebSession : IDisposable
     /// <param name="path">An allowed API path.</param>
     /// <returns>The HTTP status code and the response body.</returns>
     /// <exception cref="InvalidOperationException">The script failed, for example because of a network error.</exception>
+    /// <exception cref="TimeoutException">claude.ai did not answer in time.</exception>
     internal static async Task<(int Status, string Body)> FetchAsync(CoreWebView2 core, string path)
     {
         // The path is passed as a JSON string literal, so it cannot break out of the script.
         var expression =
-            "fetch(" + JsonSerializer.Serialize(path) + ", { credentials: 'include', headers: { 'accept': 'application/json' } })" +
+            "fetch(" + JsonSerializer.Serialize(path) + ", { credentials: 'include', headers: { 'accept': 'application/json' }, " +
+            $"signal: AbortSignal.timeout({FetchTimeoutMs}) }})" +
             ".then(async r => JSON.stringify({ status: r.status, body: await r.text() }))";
         var parameters = JsonSerializer.Serialize(new { expression, awaitPromise = true, returnByValue = true });
 
-        var raw = await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate", parameters);
+        string raw;
+        try
+        {
+            raw = await core.CallDevToolsProtocolMethodAsync("Runtime.evaluate", parameters).WaitAsync(RequestTimeout);
+        }
+        catch (TimeoutException)
+        {
+            throw new TimeoutException("claude.ai did not answer in time. Check the internet connection.");
+        }
         using var outer = JsonDocument.Parse(raw);
         if (outer.RootElement.TryGetProperty("exceptionDetails", out _) ||
             !outer.RootElement.TryGetProperty("result", out var result) ||
@@ -174,8 +237,8 @@ public sealed class ClaudeWebSession : IDisposable
     /// <param name="core">The page to navigate.</param>
     /// <param name="uri">The address to open.</param>
     /// <returns>
-    /// False when the server could not be reached at all (no HTTP response). An HTTP error page still counts as
-    /// reached, because the page is then on the right origin.
+    /// False when the server could not be reached at all (no HTTP response) or did not answer in time.
+    /// An HTTP error page still counts as reached, because the page is then on the right origin.
     /// </returns>
     internal static async Task<bool> NavigateAsync(CoreWebView2 core, Uri uri)
     {
@@ -189,6 +252,10 @@ public sealed class ClaudeWebSession : IDisposable
             core.Navigate(uri.AbsoluteUri);
             return await done.Task.WaitAsync(NavigationTimeout);
         }
+        catch (TimeoutException)
+        {
+            return false;
+        }
         finally
         {
             core.NavigationCompleted -= OnCompleted;
@@ -198,6 +265,7 @@ public sealed class ClaudeWebSession : IDisposable
     /// <summary>Closes the hidden browser.</summary>
     public void Dispose()
     {
+        _generation++;
         _controller?.Close();
         _controller = null;
         _ready = null;

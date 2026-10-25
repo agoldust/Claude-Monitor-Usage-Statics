@@ -18,6 +18,10 @@ public sealed class MonitorHub : IDisposable
     private readonly LiveUsageService _liveService;
     private readonly DispatcherTimer _timer = new();
 
+    // A timed refresh and the fetch right after sign-in can overlap; one live fetch at a time,
+    // so a timeout that restarts the hidden browser cannot break a fetch already in progress.
+    private readonly SemaphoreSlim _liveGate = new(1, 1);
+
     // The hidden browser needs a parent window that lives as long as the app, whichever windows are open.
     private readonly Window _browserHost;
 
@@ -86,6 +90,12 @@ public sealed class MonitorHub : IDisposable
     {
         var seconds = Math.Clamp(interval.TotalSeconds, AppSettings.MinRefreshSeconds, AppSettings.MaxRefreshSeconds);
         _timer.Interval = TimeSpan.FromSeconds(seconds);
+
+        // Changing the interval restarts a running timer.
+        if (_timer.IsEnabled)
+        {
+            NextRefresh = DateTimeOffset.Now + _timer.Interval;
+        }
     }
 
     /// <summary>
@@ -118,7 +128,7 @@ public sealed class MonitorHub : IDisposable
             }
             catch (Exception ex)
             {
-                LocalError = ex.Message;
+                LocalError = DescribeLocalError(ex);
                 DebugLog.Write($"Local refresh failed: {ex.GetType().Name}");
             }
 
@@ -127,6 +137,15 @@ public sealed class MonitorHub : IDisposable
         }
         finally
         {
+            // Count the interval from the end of every refresh, manual ones included,
+            // so the next refresh time shown in the UI is accurate.
+            if (_timer.IsEnabled)
+            {
+                _timer.Stop();
+                _timer.Start();
+                NextRefresh = DateTimeOffset.Now + _timer.Interval;
+            }
+
             IsLoading = false;
             OnChanged();
         }
@@ -149,6 +168,19 @@ public sealed class MonitorHub : IDisposable
 
     private async Task RefreshLiveCoreAsync()
     {
+        await _liveGate.WaitAsync();
+        try
+        {
+            await RefreshLiveGatedAsync();
+        }
+        finally
+        {
+            _liveGate.Release();
+        }
+    }
+
+    private async Task RefreshLiveGatedAsync()
+    {
         LiveUsageResult result;
         try
         {
@@ -160,15 +192,34 @@ public sealed class MonitorHub : IDisposable
             result = new LiveUsageResult(LiveUsageStatus.RuntimeMissing,
                 Message: "Live data needs the Microsoft Edge WebView2 Runtime. Install it from Microsoft, then restart the app.");
         }
+        catch (Exception ex) when (ex is InvalidOperationException or TimeoutException)
+        {
+            // These messages are written by this app and are already plain sentences.
+            result = new LiveUsageResult(LiveUsageStatus.Error, Message: ex.Message);
+        }
         catch (Exception ex)
         {
-            result = new LiveUsageResult(LiveUsageStatus.Error, Message: ex.Message);
+            DebugLog.Write($"Live refresh failed: {ex.GetType().Name}");
+            result = new LiveUsageResult(LiveUsageStatus.Error,
+                Message: "The hidden browser could not load claude.ai. Restart the app if this keeps happening.");
         }
 
         DebugLog.Write($"Live: {result.Status}{(result.Message is null ? "" : $" - {result.Message}")}" +
                        (result.Usage is null ? "" : $" ({result.Usage.Limits.Count} limits)"));
         SetLive(result);
     }
+
+    /// <summary>When the timer runs the next refresh, or null before the first refresh finishes.</summary>
+    public DateTimeOffset? NextRefresh { get; private set; }
+
+    /// <summary>Turns a local refresh failure into a plain sentence. Raw details stay out of the UI and the log.</summary>
+    private static string DescribeLocalError(Exception ex) => ex switch
+    {
+        UnauthorizedAccessException => "Windows denied access to the Claude Code folder.",
+        System.IO.DirectoryNotFoundException => "The Claude Code folder was moved or deleted.",
+        System.IO.IOException => "A Claude Code file was busy.",
+        _ => "Local usage could not be read."
+    };
 
     private void SetLive(LiveUsageResult result)
     {

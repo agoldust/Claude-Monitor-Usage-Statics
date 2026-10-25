@@ -12,6 +12,10 @@
 - Always-on-top glass widget with settings
 - Start with Windows
 - Debug log
+- Notification-area (tray) icon; app keeps running when windows close
+- Responsive dashboard layout (Compact, Normal, Wide)
+- Timeouts, browser restart and plain-language errors for live limits
+- Coordinator agent (`claude --agent coordinator`)
 - Five project subagents: review, comments, docs/git, error checking, UI advice
 
 ## Open

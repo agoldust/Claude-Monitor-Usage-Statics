@@ -10,6 +10,7 @@ ClaudeUsageMonitor\
   MainWindow.xaml(.cs)     graphical dashboard (borderless dark glass, own title buttons)
   WidgetWindow.xaml(.cs)   always-on-top glass widget
   SettingsWindow.xaml(.cs) refresh interval, opacities, blur, always on top, start with Windows
+  TrayIcon.cs              notification-area icon (WinForms NotifyIcon; UseWindowsForms is set only for this)
   AboutWindow.xaml(.cs)    author, license, version and build, data and privacy, disclaimer, credits
   LoginWindow.xaml(.cs)    WebView2 sign-in to claude.ai (normal frame: WebView2 cannot draw in a transparent window)
   Controls\                RingGauge, Palette, GlassEffect (blur), GlassDialog (base for Settings and About),
@@ -33,16 +34,17 @@ claude.ai /api/... -> ClaudeWebSession (hidden WebView2) -> LiveUsageService    
                                                          -> LiveUsageParser -> LiveUsage +               --> WidgetWindow
 ```
 
-- `MonitorHub` owns the readers, the web session and one timer. A single refresh (timer, F5 or button) feeds every open window through its `Changed` event, so the dashboard and widget always show the same data.
+- `MonitorHub` owns the readers, the web session and one timer. Live fetches are serialized and the next refresh time is tracked. `ClaudeWebSession` times out requests (20 s fetch, 30 s DevTools call, 30 s browser start), restarts the hidden browser after a timeout and closes late-starting browsers (generation counter). Session logs are opened with `FileShare.ReadWrite|Delete`.
+- `MainWindow` picks a Compact (< 860 px), Normal or Wide (>= 1540 px) layout from its width. A single refresh (timer, F5 or button) feeds every open window through its `Changed` event, so the dashboard and widget always show the same data.
 - `ClaudeLogReader` returns one deduplicated `UsageRecord` per API response; `AccountReader` builds `AccountInfo`.
 - `UsageAggregator` builds totals and the per-day, per-model, token-mix and hour-of-day figures, pricing each record with `PricingTable`.
 - `LiveUsageService` fetches `/api/organizations` then `/api/organizations/{uuid}/usage` and returns a `LiveUsageResult` (never throws). `ClaudeWebSession` runs requests inside the browser via `Runtime.evaluate` and only allows `/api/...` paths.
-- `App` loads `AppSettings` through `SettingsStore` (`%APPDATA%\ClaudeUsageMonitor\settings.json`) and applies changes to the hub and widget. A second launch shows the dashboard of the running instance. The app exits when both windows are closed.
+- `App` loads `AppSettings` through `SettingsStore` (`%APPDATA%\ClaudeUsageMonitor\settings.json`) and applies changes to the hub and widget. A second launch shows the dashboard of the running instance. Closing all windows leaves the app running in the tray (`TrayIcon`); only Exit quits.
 - `StartupRegistration` writes the HKCU Run key using the exe path at the time it is turned on.
 
 ## Agents (`.claude\agents`)
 
-The coordinator (the main session) delegates to five agents. Each description starts with its model.
+The coordinator (the main session) delegates to five agents. The coordinator is defined in `coordinator.md` and runs as the main session with `claude --agent coordinator`. Each description starts with its model.
 
 | Agent | Model | Role |
 |---|---|---|

@@ -52,7 +52,7 @@ public sealed class ClaudeLogReader
 
             try
             {
-                foreach (var line in File.ReadLines(file))
+                foreach (var line in ReadSharedLines(file))
                 {
                     var parsed = TryParseLine(line, projectFolder, sessionId);
                     if (parsed is null)
@@ -78,6 +78,22 @@ public sealed class ClaudeLogReader
         }
 
         return byResponse.Values.Concat(withoutId).ToList();
+    }
+
+    /// <summary>
+    /// Reads a file line by line while allowing other processes to keep writing to it, rename it, or delete it.
+    /// File.ReadLines only allows other readers, so it fails on the log Claude Code is writing right now.
+    /// </summary>
+    /// <param name="file">The full path of the file.</param>
+    /// <returns>The lines of the file.</returns>
+    private static IEnumerable<string> ReadSharedLines(string file)
+    {
+        using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        while (reader.ReadLine() is { } line)
+        {
+            yield return line;
+        }
     }
 
     /// <summary>

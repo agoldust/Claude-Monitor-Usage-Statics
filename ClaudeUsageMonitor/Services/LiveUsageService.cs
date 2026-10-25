@@ -63,7 +63,14 @@ public sealed class LiveUsageService
             return new LiveUsageResult(LiveUsageStatus.RuntimeMissing,
                 Message: "Live data needs the Microsoft Edge WebView2 Runtime. Install it from Microsoft, then restart the app.");
         }
-        catch (Exception ex) when (ex is InvalidOperationException or JsonException or TimeoutException or KeyNotFoundException)
+        catch (Exception ex) when (ex is JsonException or KeyNotFoundException)
+        {
+            // Parser text such as "'<' is an invalid start of a value" means nothing to the user.
+            DebugLog.Write($"Live response not readable: {ex.GetType().Name}");
+            return new LiveUsageResult(LiveUsageStatus.Error,
+                Message: "claude.ai sent a response this app could not read. It may have changed its format.");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or TimeoutException)
         {
             return new LiveUsageResult(LiveUsageStatus.Error, Message: ex.Message);
         }
