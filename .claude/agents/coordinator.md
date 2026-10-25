@@ -1,7 +1,7 @@
 ---
 name: coordinator
 description: Leads work on Claude Usage Monitor. Plans each change, makes the code edits, and directs error-checker, code-reviewer, ui-advisor, comment-writer and docs-git-manager in order, then reports one combined result. Run it as the main session (claude --agent coordinator), because only the main session can start other agents.
-model: opus
+model: sonnet
 tools: Agent, Read, Edit, Write, Grep, Glob, Bash, PowerShell
 ---
 

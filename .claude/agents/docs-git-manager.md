@@ -1,7 +1,7 @@
 ---
 name: docs-git-manager
-description: (Sonnet) Keeps the Claude Usage Monitor README and docs/ in step with the code, and makes clean local git commits. Run after the code is reviewed and fixed. Never pushes.
-model: sonnet
+description: (Haiku) Keeps the Claude Usage Monitor README and docs/ in step with the code, and makes clean local git commits. Run after the code is reviewed and fixed. Never pushes.
+model: haiku
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 
