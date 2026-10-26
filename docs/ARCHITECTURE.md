@@ -6,7 +6,7 @@ Diagrams of the system, components, refresh cycle, sign-in, startup and agent wo
 
 ```
 ClaudeUsageMonitor\
-  App.xaml(.cs)            entry; single instance (named mutex); --widget switch; dark glass theme
+  App.xaml(.cs)            entry; single instance (named mutex); --widget switch; dark glass theme; Windows app identity (AppUserModelID)
   MainWindow.xaml(.cs)     graphical dashboard (borderless dark glass, own title buttons)
   WidgetWindow.xaml(.cs)   always-on-top glass widget
   SettingsWindow.xaml(.cs) refresh interval, opacities, blur, always on top, start with Windows

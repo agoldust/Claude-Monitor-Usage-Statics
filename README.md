@@ -2,6 +2,10 @@
 
 A Windows desktop app (WPF) that shows your Claude Code usage and, after you sign in to claude.ai, your live plan limits. It has a graphical dashboard and a small always-on-top glass widget.
 
+## Download
+
+Get the installer (version 0.4.1) from the product page: [goldoust.de/apps/claude_usage_monitor](https://goldoust.de/apps/claude_usage_monitor/) ([Deutsch](https://goldoust.de/apps/claude_usage_monitor/de/)). The page lists the installer's SHA-256 checksum. The installer is per user and needs no administrator rights. It is not code-signed yet, so Windows SmartScreen may warn; choose More info, then Run anyway.
+
 ## Requirements
 
 - Windows 10 version 1809 or later
@@ -33,6 +37,7 @@ Start only the widget with `--widget`.
 Architecture diagrams are in [docs/DIAGRAMS.md](docs/DIAGRAMS.md).
 - **Start with Windows.** Registers the exe in the current user's Run key. The path is the exe's location at the time you turn it on; turn it off and on again if you move the app. Optionally opens only the widget.
 - **Single instance.** Starting the app again shows the dashboard. Closing all windows keeps the app running in the notification area; use Exit in the tray menu to quit.
+- **Windows app identity.** The app registers as `de.goldoust.claudeusagemonitor` (AppUserModelID), so Windows groups its taskbar button and notifications under its own icon. The installer's shortcuts use the same ID, so a pinned icon matches the running app.
 - **Reliability.** Session logs are read while Claude Code writes them. claude.ai requests time out (20 s fetch, 30 s browser call and start) and the hidden browser restarts; errors are shown in plain language with the retry time.
 - **Local usage.** Tokens, requests and estimated cost for today, 7 days, 30 days and all time, from Claude Code logs.
 - **Debug log.** `%LOCALAPPDATA%\ClaudeUsageMonitor\logs\app.log`.
