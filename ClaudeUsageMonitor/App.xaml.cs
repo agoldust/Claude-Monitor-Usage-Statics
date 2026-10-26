@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using ClaudeUsageMonitor.Models;
 using ClaudeUsageMonitor.Services;
@@ -11,6 +12,12 @@ public partial class App : Application
 {
     private const string InstanceName = "ClaudeUsageMonitor.SingleInstance";
     private const string ShowSignalName = "ClaudeUsageMonitor.ShowDashboard";
+
+    /// <summary>
+    /// Windows app identity for taskbar grouping and notifications. The installer gives its shortcuts the same
+    /// value, so pinned icons match the running app. Never change it once released.
+    /// </summary>
+    public const string AppUserModelId = "de.goldoust.claudeusagemonitor";
 
     private Mutex? _instanceMutex;
     private EventWaitHandle? _showSignal;
@@ -32,6 +39,9 @@ public partial class App : Application
     /// <inheritdoc />
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Must be set before the first window or tray icon exists. A failure only affects taskbar grouping.
+        SetCurrentProcessExplicitAppUserModelID(AppUserModelId);
+
         base.OnStartup(e);
 
         // A second copy asks the running one to show its dashboard, then exits.
@@ -229,4 +239,7 @@ public partial class App : Application
 
         base.OnExit(e);
     }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
 }
