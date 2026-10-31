@@ -94,7 +94,7 @@ public sealed class TrayIcon : IDisposable
         var lines = new List<string> { AppName };
         if (_hub.LastGoodLive is { } live)
         {
-            lines.AddRange(live.Limits.Select(l => $"{l.Label}: {l.Percent:0}%"));
+            lines.AddRange(UsageFormatting.GaugeLimits(live).Select(l => $"{l.Label}: {l.Percent:0}%"));
         }
         else if (_hub.LiveResult?.Status == LiveUsageStatus.SignedOut)
         {

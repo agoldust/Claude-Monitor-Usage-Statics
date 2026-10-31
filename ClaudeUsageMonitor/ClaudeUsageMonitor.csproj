@@ -11,7 +11,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>ClaudeUsageMonitor</AssemblyName>
     <RootNamespace>ClaudeUsageMonitor</RootNamespace>
-    <Version>0.4.1</Version>
+    <Version>0.4.2</Version>
     <!-- Exe icon for File Explorer, the taskbar and shortcuts. Source art is in ..\resources. -->
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Product>Claude Usage Monitor</Product>

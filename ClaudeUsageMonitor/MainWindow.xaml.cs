@@ -451,7 +451,7 @@ public partial class MainWindow : Window
         if (_hub.LastGoodLive is { } live)
         {
             var now = DateTimeOffset.Now;
-            LimitsList.ItemsSource = live.Limits.Select(l => UsageFormatting.ToLimitRow(l, now)).ToList();
+            LimitsList.ItemsSource = UsageFormatting.GaugeLimits(live).Select(l => UsageFormatting.ToLimitRow(l, now)).ToList();
             UpdateLimitTileWidth();
             UpdateCountdowns();
             LiveExtraText.Text = UsageFormatting.DescribeExtras(live);
@@ -493,7 +493,7 @@ public partial class MainWindow : Window
             }
         }
 
-        if (_hub.LastGoodLive is { } live && UsageFormatting.DescribeAvailability(live.Limits, now) is { } availability)
+        if (_hub.LastGoodLive is { } live && UsageFormatting.DescribeAvailability(live.Limits, now, live.ExtraUsage) is { } availability)
         {
             AvailabilityText.Text = availability.Text;
             AvailabilityText.Foreground = availability.Blocked ? Palette.CriticalText : (Brush)FindResource("TextBrush");

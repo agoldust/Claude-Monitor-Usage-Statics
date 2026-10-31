@@ -56,7 +56,7 @@ public sealed class LiveUsageService
 
             var (limits, extra, spend) = LiveUsageParser.Parse(usageBody);
             return new LiveUsageResult(LiveUsageStatus.Ok,
-                new LiveUsage(limits, organization.Value.Name, DateTimeOffset.Now, extra, spend));
+                new LiveUsage(limits, organization.Value.Name, DateTimeOffset.Now, extra, spend, organization.Value.Preferred));
         }
         catch (WebView2RuntimeNotFoundException)
         {
@@ -80,7 +80,8 @@ public sealed class LiveUsageService
     /// Picks the preferred organization when it is in the list, otherwise the first one with chat access, otherwise the first one.
     /// Only IDs that parse as GUIDs are accepted, so a response cannot inject text into the next request path.
     /// </summary>
-    private static (Guid Id, string? Name)? PickOrganization(string json, string? preferredId)
+    /// <returns>The organization, and whether it is the preferred one (null when no preferred ID was given).</returns>
+    private static (Guid Id, string? Name, bool? Preferred)? PickOrganization(string json, string? preferredId)
     {
         using var doc = JsonDocument.Parse(json);
         if (doc.RootElement.ValueKind != JsonValueKind.Array)
@@ -109,13 +110,16 @@ public sealed class LiveUsageService
             return null;
         }
 
+        bool? found = null;
         if (Guid.TryParse(preferredId, out var preferred))
         {
             var match = candidates.FirstOrDefault(c => c.Id == preferred);
             if (match.Id != Guid.Empty)
             {
-                return (match.Id, match.Name);
+                return (match.Id, match.Name, true);
             }
+
+            found = false;
         }
 
         var pick = candidates.FirstOrDefault(c => c.HasChat);
@@ -124,6 +128,6 @@ public sealed class LiveUsageService
             pick = candidates[0];
         }
 
-        return (pick.Id, pick.Name);
+        return (pick.Id, pick.Name, found);
     }
 }

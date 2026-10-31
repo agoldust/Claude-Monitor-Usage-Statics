@@ -69,22 +69,52 @@ public static class UsageFormatting
             string.Join(" · ", details));
     }
 
-    /// <summary>Describes extra usage and spend in one or two lines, or returns empty when neither is reported.</summary>
+    /// <summary>
+    /// The plan limits plus an "Extra usage (monthly)" gauge while extra usage is on and claude.ai reports how much is used.
+    /// Limits that claude.ai does not report, such as the Opus weekly limit on some plans, are simply not in the list.
+    /// </summary>
+    public static IReadOnlyList<LimitUsage> GaugeLimits(LiveUsage usage)
+    {
+        if (usage.ExtraUsage is not { IsEnabled: true, Percent: { } percent } extra)
+        {
+            return usage.Limits;
+        }
+
+        // The tile writes amounts with a dollar sign, so other currencies go in the extras line instead.
+        var dollars = extra.Currency is null || extra.Currency.Equals("USD", StringComparison.OrdinalIgnoreCase);
+        var tile = new LimitUsage(
+            "Extra usage (monthly)",
+            percent,
+            null,
+            null,
+            UsedDollars: dollars ? extra.Used : null,
+            LimitDollars: dollars ? extra.MonthlyLimit : null);
+        return usage.Limits.Append(tile).ToList();
+    }
+
+    /// <summary>
+    /// Describes what the gauges do not show: extra usage without a gauge, spend, and a warning when the claude.ai
+    /// sign-in is a different account from Claude Code's. Returns empty when there is nothing to say.
+    /// </summary>
     public static string DescribeExtras(LiveUsage usage)
     {
         var lines = new List<string>();
-        if (usage.ExtraUsage is { } extra)
+        if (usage.SameAccountAsClaudeCode == false)
         {
-            if (extra.IsEnabled)
+            lines.Add("The claude.ai sign-in is a different account from the one Claude Code uses, so these limits may not match Claude Code. Sign out and sign in with the Claude Code account.");
+        }
+
+        if (usage.ExtraUsage is { IsEnabled: true } extra)
+        {
+            var hasGauge = extra.Percent is not null;
+            var foreign = extra.Currency is not null && !extra.Currency.Equals("USD", StringComparison.OrdinalIgnoreCase);
+            if (!hasGauge || foreign)
             {
                 var amount = extra.Used is { } used
                     ? $" ({used:0.00}{(extra.MonthlyLimit is { } cap ? $" of {cap:0.00}" : "")} {extra.Currency})"
                     : "";
-                lines.Add($"Extra usage: on{(extra.Percent is { } p ? $" · {p:0}% of the monthly limit used" : "")}{amount}");
-            }
-            else
-            {
-                lines.Add($"Extra usage: off{(string.IsNullOrWhiteSpace(extra.DisabledReason) ? "" : $" ({extra.DisabledReason})")}");
+                lines.Add($"Extra usage: on{(extra.Percent is { } p ? $" · {p:0}% of the monthly limit used" : "")}{amount}" +
+                          (extra.MonthlyLimit is null && extra.Used is not null ? " · no monthly limit set" : ""));
             }
         }
 
@@ -150,10 +180,12 @@ public static class UsageFormatting
     /// Says when tokens are available again. When a limit is used up, this is when the last used-up limit resets,
     /// because every one of them blocks use until then. Otherwise it names the next limit to reset.
     /// </summary>
-    /// <param name="limits">The live limits.</param>
+    /// <param name="limits">The live plan limits, without the extra-usage gauge.</param>
     /// <param name="now">The current time.</param>
-    /// <returns>The text and whether use is blocked now, or null when there are no limits.</returns>
-    public static (string Text, bool Blocked)? DescribeAvailability(IReadOnlyList<LimitUsage> limits, DateTimeOffset now)
+    /// <param name="extra">Extra usage, so the text can say when it carries on after a plan limit is used up.</param>
+    /// <returns>The text and whether a plan limit is used up now, or null when there are no limits.</returns>
+    public static (string Text, bool Blocked)? DescribeAvailability(IReadOnlyList<LimitUsage> limits, DateTimeOffset now,
+        ExtraUsageInfo? extra = null)
     {
         if (limits.Count == 0)
         {
@@ -169,10 +201,12 @@ public static class UsageFormatting
                 return ("Limit reached. claude.ai did not say when it resets.", true);
             }
 
+            // While extra usage is on and has room left, use goes on at pay-as-you-go rates instead of stopping.
+            var paying = extra is { IsEnabled: true } && (extra.Percent is null || Math.Round(extra.Percent.Value) < 100);
             var until = usedUp.Max(l => l.ResetsAt!.Value);
             return until <= now
                 ? ("Limit reached · resetting now", true)
-                : ($"Limit reached · tokens available again in {FormatCountdown(until - now)}, " +
+                : ($"Limit reached · {(paying ? "extra usage in use; plan tokens back" : "tokens available again")} in {FormatCountdown(until - now)}, " +
                    $"at {until.ToLocalTime().ToString(until - now >= TimeSpan.FromDays(1) ? "ddd HH:mm" : "HH:mm", CultureInfo.CurrentCulture)}",
                    true);
         }

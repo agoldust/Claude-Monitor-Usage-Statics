@@ -84,7 +84,7 @@ public partial class WidgetWindow : Window
 
         if (_hub.LastGoodLive is { Limits.Count: > 0 } live)
         {
-            GaugeList.ItemsSource = live.Limits.Select(l => UsageFormatting.ToLimitRow(l, now)).ToList();
+            GaugeList.ItemsSource = UsageFormatting.GaugeLimits(live).Select(l => UsageFormatting.ToLimitRow(l, now)).ToList();
             GaugeList.Visibility = Visibility.Visible;
         }
         else
@@ -136,7 +136,7 @@ public partial class WidgetWindow : Window
             }
         }
 
-        if (_hub.LastGoodLive is { } live && UsageFormatting.DescribeAvailability(live.Limits, now) is { Blocked: true } availability)
+        if (_hub.LastGoodLive is { } live && UsageFormatting.DescribeAvailability(live.Limits, now, live.ExtraUsage) is { Blocked: true } availability)
         {
             BlockedText.Text = availability.Text;
             BlockedText.Foreground = Palette.CriticalText;

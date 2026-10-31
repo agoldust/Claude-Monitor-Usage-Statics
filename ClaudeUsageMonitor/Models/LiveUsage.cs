@@ -67,12 +67,17 @@ public sealed record SpendInfo(decimal Used, decimal? Limit, string Currency, do
 /// <param name="FetchedAt">When the data was fetched.</param>
 /// <param name="ExtraUsage">Extra usage settings, or null when not reported.</param>
 /// <param name="Spend">Spend for the current period, or null when not reported.</param>
+/// <param name="SameAccountAsClaudeCode">
+/// True when the claude.ai sign-in includes the organization Claude Code uses, false when it does not
+/// (a different account is signed in), or null when Claude Code's organization is unknown.
+/// </param>
 public sealed record LiveUsage(
     IReadOnlyList<LimitUsage> Limits,
     string? OrganizationName,
     DateTimeOffset FetchedAt,
     ExtraUsageInfo? ExtraUsage = null,
-    SpendInfo? Spend = null);
+    SpendInfo? Spend = null,
+    bool? SameAccountAsClaudeCode = null);
 
 /// <summary>
 /// The outcome of one attempt to fetch live usage.
