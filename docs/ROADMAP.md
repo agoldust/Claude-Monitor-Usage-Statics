@@ -17,7 +17,8 @@
 - Reset countdown on each live limit, a headline for the next reset, and a refresh 5 s after a reset (0.4.0)
 - Timeouts, browser restart and plain-language errors for live limits
 - Windows app identity `de.goldoust.claudeusagemonitor` for the taskbar, notifications and installer shortcuts (0.4.1)
-- Product page with installer download on goldoust.de, in English and German
+- Product page with installer download on goldoust.de, in English and German, with a Download item in the site menu
+- Extra-usage gauge, "extra usage in use" note when a plan limit is used up, and a warning when claude.ai is signed in to a different account than Claude Code (0.4.2)
 - Coordinator agent (`claude --agent coordinator`)
 - Five project subagents: review, comments, docs/git, error checking, UI advice
 

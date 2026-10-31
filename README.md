@@ -4,7 +4,7 @@ A Windows desktop app (WPF) that shows your Claude Code usage and, after you sig
 
 ## Download
 
-Get the installer (version 0.4.1) from the product page: [goldoust.de/apps/claude_usage_monitor](https://goldoust.de/apps/claude_usage_monitor/) ([Deutsch](https://goldoust.de/apps/claude_usage_monitor/de/)). The page lists the installer's SHA-256 checksum. The installer is per user and needs no administrator rights. It is not code-signed yet, so Windows SmartScreen may warn; choose More info, then Run anyway.
+Get the installer (version 0.4.2) from the product page: [goldoust.de/apps/claude_usage_monitor](https://www.goldoust.de/apps/claude_usage_monitor/) ([Deutsch](https://www.goldoust.de/apps/claude_usage_monitor/de/)). The page lists the installer's SHA-256 checksum. The installer is per user and needs no administrator rights. It is not code-signed yet, so Windows SmartScreen may warn; choose More info, then Run anyway.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ Start only the widget with `--widget`.
 
 ## Features
 
-- **Live plan limits.** Sign in to claude.ai from the app; limits are fetched from claude.ai's internal web endpoints (not a public API, so they may change without notice). Shown as ring gauges with a pace marker.
+- **Live plan limits.** Sign in to claude.ai from the app; limits are fetched from claude.ai's internal web endpoints (not a public API, so they may change without notice). Shown as ring gauges with a pace marker. Each limit appears only when claude.ai reports it, so the Opus and Sonnet weekly limits show up only on plans that have them. While extra usage is on, an "Extra usage (monthly)" gauge shows how much of the monthly spend limit is used, and the "Limit reached" line says when extra usage carries on. If the claude.ai sign-in is a different account from the one Claude Code uses, the dashboard says so.
 - **Reset countdown.** Each live limit counts down to its reset every second. The dashboard shows "Next reset: <limit> in …", or a red "Limit reached · tokens available again in …" line while a limit is at 100%. The widget shows the red line only while a limit is used up. The app refreshes 5 seconds after a limit resets.
 - **Tray icon.** Notification-area icon: left-click opens the dashboard; right-click for Open dashboard, Show/Hide widget, Refresh now, Settings, About and Exit. The tooltip shows the live limit percentages.
 - **Responsive dashboard.** Four layouts by window width: Compact for 360 to 859 px (phone-like: one column, shorter charts; Refresh shows only its icon below 440 px), Normal for 860 to 1539 px (one column), Wide for 1540 to 2299 px (two columns, taller charts, tables side by side), and Extra-wide for 2300 px and up (three columns). Content is capped at 3600 px. Minimum window size is 360x400. The top bar wraps to two rows below 1000 px. Widget, Settings and About are icon-only buttons; "Last refresh" is shown next to Refresh.
